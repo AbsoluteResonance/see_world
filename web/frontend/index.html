@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>See World — 场景理解</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>See World</h1>
+    <p class="subtitle">上传 &amp; 场景理解</p>
+  </header>
+
+  <main class="container">
+    <!-- Upload Area -->
+    <section class="upload-section">
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-zone__icon">+</div>
+        <p class="drop-zone__text">拖拽图片或视频到此处</p>
+        <p class="drop-zone__hint">支持 JPG / PNG / WebP / MP4 / MOV，图片 &lt;20MB，视频 &lt;200MB</p>
+        <label class="drop-zone__btn" for="fileInput">选择文件</label>
+        <input type="file" id="fileInput" multiple accept="image/*,video/*" hidden />
+      </div>
+      <div class="upload-progress" id="uploadProgress" hidden>
+        <div class="upload-progress__bar">
+          <div class="upload-progress__fill" id="progressFill"></div>
+        </div>
+        <span class="upload-progress__text" id="progressText">0%</span>
+      </div>
+    </section>
+
+    <!-- Gallery -->
+    <section class="gallery-section">
+      <div class="section-header">
+        <h2>已上传文件</h2>
+        <button class="btn-refresh" id="refreshBtn">刷新</button>
+      </div>
+      <div class="gallery" id="gallery">
+        <div class="gallery__empty">暂无文件，请上传</div>
+      </div>
+    </section>
+
+    <!-- Analysis Panel -->
+    <section class="analysis-section" id="analysisSection" hidden>
+      <div class="section-header">
+        <h2>AI 分析</h2>
+        <button class="btn-close" id="closeAnalysis">&times;</button>
+      </div>
+      <div class="analysis-preview" id="analysisPreview"></div>
+      <div class="analysis-input">
+        <textarea id="analysisPrompt" rows="2" placeholder="输入分析提示词…">请详细描述这张图片的内容，包括场景、物体、人物、颜色、位置关系等</textarea>
+        <button class="btn-analyze" id="analyzeBtn">分析</button>
+      </div>
+      <div class="analysis-result" id="analysisResult" hidden>
+        <h3>分析结果</h3>
+        <div class="analysis-result__content" id="analysisContent"></div>
+        <div class="analysis-result__meta" id="analysisMeta"></div>
+      </div>
+      <div class="analysis-error" id="analysisError" hidden></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>See World v0.1 — Built with FastAPI + Vanilla JS</p>
+  </footer>
+
+  <script src="/static/js/upload.js"></script>
+  <script src="/static/js/gallery.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

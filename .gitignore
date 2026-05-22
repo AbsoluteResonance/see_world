@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+uploads/images/*
+uploads/videos/*
+uploads/.cache/*
+!uploads/images/.gitkeep
+!uploads/videos/.gitkeep
+!uploads/.cache/.gitkeep
+.env
+*.egg-info/
