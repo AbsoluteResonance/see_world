@@ -139,17 +139,19 @@ async function startReconstruction() {
   progressText.textContent = '5%';
 
   try {
-    const resp = await fetch(`/api/reconstruct/from-file/${currentAnalysisFileId}`, {
+    const resp = await fetch(`/api/reconstruct/from-file/${encodeURIComponent(currentAnalysisFileId)}`, {
       method: 'POST',
     });
     const body = await resp.json();
     const job = body.data || {};
+    // FastAPI error responses use {detail: {message: ...}} format
+    const errDetail = body.detail || {};
 
     if (!job.job_id) {
-      const errMsg = job.error || body.message || '';
+      const errMsg = job.error || errDetail.message || body.message || '';
       throw new Error(errMsg.includes('File not found')
         ? '文件不存在，请刷新页面后重试'
-        : errMsg || '启动失败');
+        : errMsg || '启动失败（请刷新页面后重试）');
     }
 
     // Poll for completion
