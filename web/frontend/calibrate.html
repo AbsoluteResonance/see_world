@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>See World — 相机标定</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    .calib-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px;
+      margin: 1rem 0;
+    }
+    .calib-grid__item {
+      border-radius: 6px;
+      overflow: hidden;
+      aspect-ratio: 1;
+      background: var(--surface);
+      border: 2px solid var(--border);
+    }
+    .calib-grid__item img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .calib-grid__item.detected { border-color: var(--success); }
+    .calib-grid__item.failed { border-color: var(--error); opacity: 0.5; }
+    .calib-result {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-top: 1rem;
+    }
+    .calib-result pre {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .calib-matrix {
+      font-family: monospace;
+      font-size: 1rem;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>See World — 相机标定</h1>
+    <p class="subtitle"><a href="/" style="color:var(--primary)">← 返回主页</a></p>
+  </header>
+
+  <main class="container">
+    <!-- Upload Section -->
+    <section class="upload-section">
+      <div class="section-header">
+        <h2>拍摄棋盘格照片</h2>
+        <span style="color:var(--text-muted);font-size:0.85rem" id="imageCount">0 张</span>
+      </div>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">
+        将打印的棋盘格放在面前，用手机从不同角度拍摄（至少 10 张），
+        确保棋盘格在每个角度都清晰可见。
+      </p>
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-zone__icon">+</div>
+        <p class="drop-zone__text">拖拽或点击上传棋盘格照片</p>
+        <p class="drop-zone__hint">JPG / PNG，至少 3 张，建议 10-20 张</p>
+        <label class="drop-zone__btn" for="fileInput">选择文件</label>
+        <input type="file" id="fileInput" multiple accept="image/*" hidden />
+      </div>
+      <div class="upload-progress" id="uploadProgress" hidden>
+        <div class="upload-progress__bar"><div class="upload-progress__fill" id="progressFill"></div></div>
+        <span class="upload-progress__text" id="progressText">0%</span>
+      </div>
+    </section>
+
+    <!-- Image Grid -->
+    <section class="gallery-section" id="imageGridSection" hidden>
+      <div class="section-header">
+        <h2>已上传照片</h2>
+        <button class="btn-refresh" id="resetBtn" style="color:var(--error)">清空</button>
+      </div>
+      <div class="calib-grid" id="imageGrid"></div>
+    </section>
+
+    <!-- Run Calibration -->
+    <section style="margin-top:1rem">
+      <button class="btn-analyze" id="runBtn" style="width:100%;padding:0.75rem;font-size:1rem" disabled>
+        运行标定（至少 3 张有效照片）
+      </button>
+    </section>
+
+    <!-- Result -->
+    <section class="calib-result" id="resultSection" hidden>
+      <div class="section-header">
+        <h2>标定结果</h2>
+        <button class="btn-refresh" id="downloadYamlBtn">下载 YAML</button>
+      </div>
+      <div class="calib-matrix" id="resultContent"></div>
+      <pre id="resultYaml"></pre>
+    </section>
+
+    <section style="margin-top:1rem;color:var(--text-muted);font-size:0.8rem;line-height:1.6" id="helpSection">
+      <h3 style="color:var(--text);font-size:0.9rem">操作说明</h3>
+      <ol style="padding-left:1.2rem">
+        <li>打印一张棋盘格图案（或使用显示器显示）</li>
+        <li>用手机从不同角度拍摄棋盘格（俯拍、侧拍、斜拍等）</li>
+        <li>上传照片到这里（建议 10-20 张）</li>
+        <li>点击"运行标定"</li>
+        <li>下载 YAML 配置文件，用于后续 3D 重建</li>
+      </ol>
+      <p style="margin-top:0.5rem">默认棋盘格参数：内角点 9×6，格大小 0.025m（2.5cm）</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>See World — Camera Calibration Tool</p>
+  </footer>
+
+  <script>
+  let detectedCount = 0;
+
+  // Upload handler
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const progressBar = document.getElementById('uploadProgress');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+
+  dropZone.addEventListener('click', (e) => {
+    if (e.target.closest('.drop-zone__btn')) return;
+    fileInput.click();
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) uploadFiles(fileInput.files);
+  });
+  ['dragenter','dragover'].forEach(e => {
+    dropZone.addEventListener(e, (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  });
+  ['dragleave','drop'].forEach(e => {
+    dropZone.addEventListener(e, (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); });
+  });
+  dropZone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+  });
+
+  async function uploadFiles(files) {
+    progressBar.hidden = false;
+    let completed = 0;
+    for (const file of files) {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('pattern_width', '9');
+      form.append('pattern_height', '6');
+      form.append('square_size', '0.025');
+
+      try {
+        const resp = await fetch('/api/calibrate/upload', { method: 'POST', body: form });
+        const body = await resp.json();
+        if (body.data?.detected) detectedCount++;
+      } catch (err) {
+        console.error('Upload failed:', file.name);
+      }
+      completed++;
+      const pct = Math.round((completed / files.length) * 100);
+      progressFill.style.width = pct + '%';
+      progressText.textContent = pct + '%';
+    }
+    setTimeout(() => {
+      progressBar.hidden = true;
+      progressFill.style.width = '0%';
+      progressText.textContent = '0%';
+      refreshStatus();
+    }, 300);
+  }
+
+  async function refreshStatus() {
+    const resp = await fetch('/api/calibrate/status');
+    const body = await resp.json();
+    const data = body.data || {};
+    document.getElementById('imageCount').textContent = data.image_count + ' 张';
+
+    const gridSection = document.getElementById('imageGridSection');
+    gridSection.hidden = (data.image_count === 0);
+
+    const btn = document.getElementById('runBtn');
+    btn.disabled = data.image_count < 1;
+
+    if (data.has_result) {
+      const resp2 = await fetch('/api/calibrate/result');
+      const body2 = await resp2.json();
+      showResult(body2.data);
+    }
+  }
+
+  // Run calibration
+  document.getElementById('runBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true;
+    btn.textContent = '标定中…';
+    try {
+      const resp = await fetch('/api/calibrate/run', { method: 'POST' });
+      const body = await resp.json();
+      if (body.code === 0) {
+        showResult(body.data);
+      } else {
+        alert('标定失败: ' + (body.detail?.message || body.message));
+      }
+    } catch (err) {
+      alert('请求失败: ' + err.message);
+    }
+    btn.disabled = false;
+    btn.textContent = '运行标定';
+  });
+
+  function showResult(data) {
+    const section = document.getElementById('resultSection');
+    section.hidden = false;
+
+    const cm = data.camera_matrix;
+    const d = data.distortion;
+    const content = document.getElementById('resultContent');
+    content.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div>
+          <strong>相机矩阵 K</strong><br/>
+          [ ${cm.fx.toFixed(1)} &nbsp; 0 &nbsp; ${cm.cx.toFixed(1)} ]<br/>
+          [ 0 &nbsp; ${cm.fy.toFixed(1)} &nbsp; ${cm.cy.toFixed(1)} ]<br/>
+          [ 0 &nbsp; 0 &nbsp; 1 ]
+        </div>
+        <div>
+          <strong>畸变系数</strong><br/>
+          k1: ${d.k1}<br/>
+          k2: ${d.k2}<br/>
+          p1: ${d.p1}<br/>
+          p2: ${d.p2}
+        </div>
+      </div>
+      <div style="margin-top:0.5rem;color:var(--text-muted);font-size:0.85rem">
+        重投影误差: ${data.reprojection_error} px · 使用 ${data.images_used} 张照片 ·
+        图像尺寸: ${data.image_size.width}×${data.image_size.height}
+      </div>
+    `;
+  }
+
+  // Download YAML
+  document.getElementById('downloadYamlBtn').addEventListener('click', () => {
+    window.open('/api/calibrate/result/yaml', '_blank');
+  });
+
+  // Reset
+  document.getElementById('resetBtn').addEventListener('click', async () => {
+    if (!confirm('清空所有标定数据？')) return;
+    await fetch('/api/calibrate/reset', { method: 'DELETE' });
+    detectedCount = 0;
+    document.getElementById('resultSection').hidden = true;
+    refreshStatus();
+  });
+
+  // Initial status
+  refreshStatus();
+  </script>
+</body>
+</html>

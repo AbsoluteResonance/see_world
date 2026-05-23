@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import settings
-from backend.routes import upload, model, slam_routes
+from backend.routes import upload, model, slam_routes, calibrate
 
 
 @asynccontextmanager
@@ -54,6 +54,7 @@ app.mount("/static", StaticFiles(directory=str(frontend_path), html=True), name=
 app.include_router(upload.router)
 app.include_router(model.router)
 app.include_router(slam_routes.router)
+app.include_router(calibrate.router)
 
 
 @app.get("/api/health")
