@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     max_video_size_mb: int = 200
     kimi_model: str = "kimi-k2.6"
     tunnel_token: str = ""
+    slam3r_model_i2p: str = "siyan824/slam3r_i2p"
+    slam3r_model_l2w: str = "siyan824/slam3r_l2w"
+    slam3r_device: str = "cuda"
+    slam3r_output_dir: str = ""
 
     class Config:
         env_prefix = "SEE_WORLD_"

@@ -8,6 +8,7 @@ let latestJobId = null;
 
 function openAnalysis(fileId, url, type) {
   currentAnalysisFileId = fileId;
+  window._currentAnalysisFileId = fileId;  // expose for slam3r.js
   currentAnalysisUrl = url;
   currentAnalysisType = type;
   const section = document.getElementById('analysisSection');

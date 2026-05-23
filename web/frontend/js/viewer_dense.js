@@ -190,6 +190,52 @@
       });
   }
 
+  /**
+   * Add incremental points to the existing cloud (for streaming).
+   * points: Array of [x, y, z, r, g, b] arrays.
+   */
+  function addPoints(newPoints) {
+    init();
+    if (!newPoints || newPoints.length === 0) return;
+
+    const positions = new Float32Array(newPoints.length * 3);
+    const colors = new Float32Array(newPoints.length * 3);
+
+    for (let i = 0; i < newPoints.length; i++) {
+      const p = newPoints[i];
+      positions[i * 3] = p[0];
+      positions[i * 3 + 1] = p[1];
+      positions[i * 3 + 2] = p[2];
+      colors[i * 3] = p[3] / 255;
+      colors[i * 3 + 1] = p[4] / 255;
+      colors[i * 3 + 2] = p[5] / 255;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.03,
+      vertexColors: true,
+      sizeAttenuation: true,
+      opacity: 0.9,
+      transparent: true,
+    });
+
+    const points = new THREE.Points(geometry, material);
+    pointCloudGroup.add(points);
+
+    // Update status with total count
+    let totalCount = 0;
+    pointCloudGroup.children.forEach(child => {
+      if (child.geometry && child.geometry.attributes.position) {
+        totalCount += child.geometry.attributes.position.count;
+      }
+    });
+    setStatus(`实时点云更新: ${totalCount.toLocaleString()} 个点`);
+  }
+
   function resetView() {
     if (!isInitialized) return;
     controls.target.set(0, 0, 0);
@@ -198,7 +244,7 @@
   }
 
   // Public API
-  window.denseViewer = { loadPointCloud, resetView, clear };
+  window.denseViewer = { loadPointCloud, addPoints, resetView, clear };
 
   // Wire UI
   document.addEventListener('DOMContentLoaded', () => {

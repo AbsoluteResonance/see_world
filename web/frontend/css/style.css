@@ -395,6 +395,20 @@ section {
 .recon-job__status.failed { background: rgba(239,68,68,0.2); color: var(--error); }
 .recon-job__status.pending { background: rgba(148,163,184,0.2); color: var(--text-muted); }
 
+/* SLAM3R Panel */
+.recon-result {
+  margin-top: 0.5rem;
+}
+
+/* Streaming preview */
+#streamPreview {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  border-radius: 8px;
+  background: #000;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .gallery {
