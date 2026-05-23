@@ -176,27 +176,34 @@ async function startReconstruction() {
           statusText.textContent = '完成';
           progressText.textContent = '100%';
 
-          // Store and load trajectory into 3D viewer
+          // Store URL for potential later use
           latestTrajectoryUrl = `/api/reconstruct/${jobId}/trajectory`;
-          loadTrajectoryFromUrl(latestTrajectoryUrl);
+          const hasTrajectory = status.trajectory_file && status.trajectory_file.length > 0;
 
-          // Show "加载轨迹" button
-          const trajBtn = document.getElementById('loadTrajectoryBtn');
-          if (trajBtn) trajBtn.style.display = '';
+          if (hasTrajectory) {
+            loadTrajectoryFromUrl(latestTrajectoryUrl);
+            statusText.textContent = '完成 ✓';
+            document.getElementById('reconStatusText').textContent = '完成 ✓';
 
-          // Auto-load colored point cloud if available
-          if (status.pointcloud_file) {
-            const plyUrl = `/api/reconstruct/${jobId}/pointcloud`;
-            // Small delay to let trajectory render first
-            setTimeout(() => {
-              if (window.loadPointCloud) {
-                window.loadPointCloud(plyUrl);
-              }
-            }, 200);
+            // Show "加载轨迹" button
+            const trajBtn = document.getElementById('loadTrajectoryBtn');
+            if (trajBtn) trajBtn.style.display = '';
+
+            // Auto-load colored point cloud if available
+            if (status.pointcloud_file) {
+              setTimeout(() => {
+                if (window.loadPointCloud) {
+                  window.loadPointCloud(`/api/reconstruct/${jobId}/pointcloud`);
+                }
+              }, 200);
+            }
+
+            // Switch to 3D viewer
+            document.getElementById('viewerSection').scrollIntoView({ behavior: 'smooth' });
+          } else {
+            statusText.textContent = '无轨迹';
+            progressText.textContent = 'SLAM 未能从该视频中提取出相机轨迹。\n请尝试拍摄运动幅度更大的视频。';
           }
-
-          // Switch to 3D viewer
-          document.getElementById('viewerSection').scrollIntoView({ behavior: 'smooth' });
         }
 
         if (status.error) {

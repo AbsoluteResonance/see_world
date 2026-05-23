@@ -20,7 +20,7 @@ DEFAULT_K = np.array([
     [0,       0,       1]
 ], dtype=np.float64)
 
-MAX_REPROJ_ERROR = 4.0   # pixels — discard bad triangulations
+MAX_REPROJ_ERROR = 8.0   # pixels — discard bad triangulations
 MIN_PARALLAX = 0.005     # radians — skip near-zero baseline pairs
 VOXEL_SIZE = 0.02        # meters — downsampling grid for PLY output
 
@@ -157,17 +157,33 @@ def triangulate_pair(img1: np.ndarray, img2: np.ndarray,
                      P1: np.ndarray, P2: np.ndarray,
                      K: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Extract features, match, triangulate, return points (Nx3) and colors (Nx3)."""
-    # Detect ORB features
-    orb = cv2.ORB_create(nfeatures=2000)
-    kp1, des1 = orb.detectAndCompute(img1, None)
-    kp2, des2 = orb.detectAndCompute(img2, None)
+    # Detect features (use ORB with more features, or SIFT if available)
+    try:
+        # Try SIFT first for better matching
+        sift = cv2.SIFT_create(nfeatures=3000)
+        kp1, des1 = sift.detectAndCompute(img1, None)
+        kp2, des2 = sift.detectAndCompute(img2, None)
+        norm = cv2.NORM_L2
+    except Exception:
+        orb = cv2.ORB_create(nfeatures=3000)
+        kp1, des1 = orb.detectAndCompute(img1, None)
+        kp2, des2 = orb.detectAndCompute(img2, None)
+        norm = cv2.NORM_HAMMING
 
     if des1 is None or des2 is None or len(kp1) < 10 or len(kp2) < 10:
         return np.empty((0, 3)), np.empty((0, 3))
 
-    # Match with BFMatcher
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING)
-    matches = bf.knnMatch(des1, des2, k=2)
+    # Match with FLANN-based matcher for SIFT, BF for ORB
+    if norm == cv2.NORM_L2:
+        # FLANN for SIFT
+        FLANN_INDEX_KDTREE = 1
+        index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+        search_params = dict(checks=50)
+        matcher = cv2.FlannBasedMatcher(index_params, search_params)
+    else:
+        matcher = cv2.BFMatcher(norm)
+
+    matches = matcher.knnMatch(des1, des2, k=2)
 
     # Ratio test (Lowe's)
     good_matches = []
@@ -320,9 +336,11 @@ def build_pointcloud(frames_dir: str, trajectory_file: str,
     all_points = []
     all_colors = []
 
-    for i in range(len(matched) - 1):
+    # Use every pair (i, i+2) for larger baseline = better triangulation
+    pair_gap = 2
+    for i in range(0, len(matched) - pair_gap):
         pose1, img_path1 = matched[i]
-        pose2, img_path2 = matched[i + 1]
+        pose2, img_path2 = matched[i + pair_gap]
 
         # Compute baseline (parallax)
         baseline = np.linalg.norm(pose2["t"] - pose1["t"])
