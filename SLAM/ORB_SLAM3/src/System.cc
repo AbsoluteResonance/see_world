@@ -630,20 +630,24 @@ void System::SaveKeyFrameTrajectoryTUM(const string &filename)
 {
     cout << endl << "Saving keyframe trajectory to " << filename << " ..." << endl;
 
-    // Collect keyframes from ALL maps (not just current map, which may be empty after reset)
+    // Collect keyframes from ALL maps
     vector<Map*> allMaps = mpAtlas->GetAllMaps();
     vector<KeyFrame*> vpKFs;
+    cout << "Map count: " << allMaps.size() << endl;
+    int mapIdx = 0;
     for(Map* pMap : allMaps) {
         vector<KeyFrame*> kfs = pMap->GetAllKeyFrames();
+        cout << "  Map " << mapIdx++ << ": " << kfs.size() << " KFs (id=" << pMap->GetId() << ")" << endl;
         vpKFs.insert(vpKFs.end(), kfs.begin(), kfs.end());
     }
-    sort(vpKFs.begin(),vpKFs.end(),KeyFrame::lId);
 
-    // If still empty, try current map
-    if(vpKFs.empty()) {
-        vpKFs = mpAtlas->GetAllKeyFrames();
-        sort(vpKFs.begin(),vpKFs.end(),KeyFrame::lId);
-    }
+    // Also try current map directly
+    Map* curMap = mpAtlas->GetCurrentMap();
+    vector<KeyFrame*> curKFs = curMap->GetAllKeyFrames();
+    cout << "  Current map: " << curKFs.size() << " KFs (id=" << curMap->GetId() << ")" << endl;
+    vpKFs.insert(vpKFs.end(), curKFs.begin(), curKFs.end());
+
+    sort(vpKFs.begin(),vpKFs.end(),KeyFrame::lId);
 
     // Transform all keyframes so that the first keyframe is at the origin.
     // After a loop closure the first keyframe might not be at the origin.

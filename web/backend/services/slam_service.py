@@ -174,7 +174,7 @@ def reconstruct_from_file(file_id: str) -> dict:
         update_job(job_id, images_dir=images_dir, status="running", progress=20)
 
         # Run SLAM via Python interface
-        from SLAM.python_interface import SLAMRunner
+        from SLAM.ORB_SLAM3.python import SLAMRunner
         runner = SLAMRunner(slam_type="orb_slam3")
         ready = runner.check_ready(images_dir)
 
@@ -193,7 +193,7 @@ def reconstruct_from_file(file_id: str) -> dict:
         ply_file = ""
         if completed and traj_file and Path(traj_file).stat().st_size > 0:
             try:
-                from SLAM.python_interface.pointcloud import build_pointcloud
+                from SLAM.ORB_SLAM3.python.pointcloud import build_pointcloud
                 ply_path = str(Path(output_dir) / "pointcloud.ply")
                 ply_file = build_pointcloud(images_dir, traj_file, ply_path)
             except Exception as e:
@@ -221,7 +221,7 @@ def run_slam(job_id: str) -> dict:
     update_job(job_id, status="running", progress=10)
 
     try:
-        from SLAM.python_interface import SLAMRunner
+        from SLAM.ORB_SLAM3.python import SLAMRunner
 
         runner = SLAMRunner(slam_type="orb_slam3")
         ready = runner.check_ready(job["images_dir"])

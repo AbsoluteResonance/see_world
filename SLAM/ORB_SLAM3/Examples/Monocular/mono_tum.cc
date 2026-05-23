@@ -104,7 +104,7 @@ int main(int argc, char **argv)
             usleep((T-ttrack)*1e6);
     }
 
-    // Save trajectory BEFORE shutdown (avoids memory corruption crash)
+    // Save trajectory BEFORE shutdown
     SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
 
     // Tracking time statistics

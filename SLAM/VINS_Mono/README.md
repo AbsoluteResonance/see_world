@@ -40,7 +40,7 @@ source devel/setup.bash
 
 ```bash
 # 需要先下载 EuRoC 数据集
-python3 /root/autodl-tmp/projects/see_world/SLAM/scripts/download_dataset.py \
+python3 /root/autodl-tmp/projects/see_world/SLAM/ORB_SLAM3/scripts/download_dataset.py \
   --dataset euroc --sequence MH_05
 
 # 运行
