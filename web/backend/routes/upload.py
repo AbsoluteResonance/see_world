@@ -144,21 +144,50 @@ async def download_file(file_id: str):
 
 @router.get("/api/files/{file_id}/thumbnail")
 async def get_thumbnail(file_id: str):
-    for subdir in [IMAGE_DIR]:
+    import io
+    from fastapi.responses import Response
+
+    # Check cache first
+    cache_dir = Path(settings.upload_dir) / ".cache" / "thumbs"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cached = cache_dir / f"{file_id}.jpg"
+    if cached.exists():
+        return Response(content=cached.read_bytes(), media_type="image/jpeg")
+
+    # Search in images and videos
+    for subdir, _ftype in [(IMAGE_DIR, "image"), (VIDEO_DIR, "video")]:
         if not subdir.exists():
             continue
         for f in subdir.iterdir():
-            if file_id in f.name:
-                try:
+            if f.name.startswith('.') or not f.is_file():
+                continue
+            if file_id not in f.name:
+                continue
+            try:
+                if _ftype == "image":
                     from PIL import Image
-                    import io
-                    from fastapi.responses import Response
                     img = Image.open(f)
-                    img.thumbnail((300, 300))
-                    buf = io.BytesIO()
-                    img.save(buf, format="JPEG")
-                    return Response(content=buf.getvalue(), media_type="image/jpeg")
-                except Exception:
-                    raise HTTPException(status_code=400, detail={"code": 40001, "message": "Failed to generate thumbnail"})
+                else:
+                    # Video: extract first frame with OpenCV
+                    import cv2
+                    cap = cv2.VideoCapture(str(f))
+                    ret, frame = cap.read()
+                    cap.release()
+                    if not ret:
+                        raise RuntimeError("Cannot read video frame")
+                    # Convert BGR (OpenCV) to RGB (PIL)
+                    from PIL import Image
+                    import numpy as np
+                    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+                img.thumbnail((300, 300))
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG")
+                data = buf.getvalue()
+                # Cache thumbnail
+                cached.write_bytes(data)
+                return Response(content=data, media_type="image/jpeg")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail={"code": 40001, "message": f"Thumbnail failed: {e}"})
 
     raise HTTPException(status_code=404, detail={"code": 404, "message": "File not found"})

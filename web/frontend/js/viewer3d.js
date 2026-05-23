@@ -168,6 +168,26 @@ function loadSamplePointCloud() {
   document.getElementById('viewer3d-status').textContent = '示例点云（无实际数据）';
 }
 
+// Keyboard shortcuts for 3D viewer navigation
+document.addEventListener('keydown', (e) => {
+  if (!isInitialized || !renderer || !renderer.domElement) return;
+  // Only when 3D viewer is visible
+  const container = renderer.domElement.closest('#viewer3d-container');
+  if (!container || container.offsetParent === null) return;
+
+  const step = 0.2;
+  const zoomStep = 0.1;
+  switch (e.key) {
+    case 'ArrowUp':    camera.position.y += step; e.preventDefault(); break;
+    case 'ArrowDown':  camera.position.y -= step; e.preventDefault(); break;
+    case 'ArrowLeft':  camera.position.x -= step; e.preventDefault(); break;
+    case 'ArrowRight': camera.position.x += step; e.preventDefault(); break;
+    case '+': case '=': camera.position.multiplyScalar(1 - zoomStep); e.preventDefault(); break;
+    case '-': case '_': camera.position.multiplyScalar(1 + zoomStep); e.preventDefault(); break;
+    case 'r': case 'R': resetCameraView(); e.preventDefault(); break;
+  }
+});
+
 // Expose for use from app.js
 window.initViewer3D = initViewer3D;
 window.loadPointCloud = loadPointCloud;
@@ -217,10 +237,31 @@ function loadTrajectoryPoints(points) {
 
   // Auto-fit camera
   const box = new THREE.Box3().setFromObject(group);
+  window._lastBox = box;
+  fitCameraToBox(box);
+}
+window.loadTrajectoryPoints = loadTrajectoryPoints;
+
+/** Fit camera to bounding box with best viewing angle */
+function fitCameraToBox(box) {
+  if (!box) return;
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z, 0.1);
-  camera.position.set(center.x, center.y, center.z + maxDim * 1.5);
+  const dist = maxDim * 1.8;
+  // Place camera above and to the side for a natural overview
+  camera.position.set(center.x + dist * 0.5, center.y + dist * 0.4, center.z + dist);
   camera.lookAt(center);
 }
-window.loadTrajectoryPoints = loadTrajectoryPoints;
+
+/** Reset camera to best view of current scene */
+function resetCameraView() {
+  if (!isInitialized) return;
+  if (window._lastBox) {
+    fitCameraToBox(window._lastBox);
+  } else {
+    camera.position.set(0, 0, 5);
+    camera.lookAt(0, 0, 0);
+  }
+}
+window.resetCameraView = resetCameraView;

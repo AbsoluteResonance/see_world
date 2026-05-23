@@ -351,6 +351,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 3D Viewer — Reset View
+  const resetViewBtn = document.getElementById('resetViewBtn');
+  if (resetViewBtn) {
+    resetViewBtn.addEventListener('click', () => {
+      if (window.resetCameraView) window.resetCameraView();
+    });
+  }
+
   // Legacy reconstruction
   const startReconBtn = document.getElementById('startReconBtn');
   if (startReconBtn) startReconBtn.addEventListener('click', startReconstructionLegacy);

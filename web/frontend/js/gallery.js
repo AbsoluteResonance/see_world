@@ -21,7 +21,7 @@ async function refreshGallery() {
       return `
         <div class="gallery__item" data-file-id="${f.file_id}" data-url="${f.url}" data-type="${f.type}">
           ${isVideo
-            ? `<video src="${f.url}" muted preload="metadata"></video>`
+            ? `<video src="${f.url}" muted preload="metadata" poster="/api/files/${f.file_id}/thumbnail"></video>`
             : `<img src="${f.url}" alt="${f.filename}" loading="lazy" />`
           }
           <span class="gallery__badge">${isVideo ? 'VIDEO' : 'IMG'}</span>
