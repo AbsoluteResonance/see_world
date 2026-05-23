@@ -283,6 +283,23 @@ def write_ply(filepath: str, points: np.ndarray, colors: np.ndarray):
             f.write(f"{x:.6f} {y:.6f} {z:.6f} {int(r)} {int(g)} {int(b)}\n")
 
 
+def load_calibration_yaml(yaml_path: str) -> np.ndarray:
+    """Load camera intrinsics from ORB-SLAM3 format YAML."""
+    import re
+    with open(yaml_path) as f:
+        text = f.read()
+    def get_val(key):
+        m = re.search(rf'^{key}:\s*([\d.eE+-]+)', text, re.MULTILINE)
+        return float(m.group(1)) if m else None
+    fx = get_val('Camera.fx')
+    fy = get_val('Camera.fy')
+    cx = get_val('Camera.cx')
+    cy = get_val('Camera.cy')
+    if all(v is not None for v in [fx, fy, cx, cy]):
+        return np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float64)
+    return DEFAULT_K.copy()
+
+
 def build_pointcloud(frames_dir: str, trajectory_file: str,
                      output_ply: str, K: np.ndarray | None = None) -> str:
     """Generate a colored PLY point cloud from SLAM trajectory + frames.

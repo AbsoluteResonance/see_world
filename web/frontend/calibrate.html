@@ -116,7 +116,10 @@
     <section class="calib-result" id="resultSection" hidden>
       <div class="section-header">
         <h2>标定结果</h2>
-        <button class="btn-refresh" id="downloadYamlBtn">下载 YAML</button>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button class="btn-refresh" id="downloadYamlBtn">下载原始 YAML</button>
+          <button class="btn-refresh" id="downloadScaledYamlBtn" style="color:var(--success);border-color:var(--success)">下载 640×480 YAML</button>
+        </div>
       </div>
       <div class="calib-matrix" id="resultContent"></div>
       <pre id="resultYaml"></pre>
@@ -277,6 +280,9 @@
   // Download YAML
   document.getElementById('downloadYamlBtn').addEventListener('click', () => {
     window.open('/api/calibrate/result/yaml', '_blank');
+  });
+  document.getElementById('downloadScaledYamlBtn').addEventListener('click', () => {
+    window.open('/api/calibrate/result/yaml?target_width=640&target_height=480', '_blank');
   });
 
   // Reset

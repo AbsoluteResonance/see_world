@@ -71,7 +71,7 @@ def _extract_frames(video_path: Path, output_dir: Path, frame_skip: int = 10,
         if not ret:
             break
         if count % frame_skip == 0:
-            # Resize large frames for SLAM compatibility
+            # Resize large frames to target size for SLAM compatibility
             if target_size and (frame.shape[1] > target_size[0] or frame.shape[0] > target_size[1]):
                 frame = cv2.resize(frame, target_size, interpolation=cv2.INTER_AREA)
             timestamp = count / fps
