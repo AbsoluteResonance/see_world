@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>棋盘格 — Camera Calibration Pattern</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: sans-serif;
+    }
+    #pattern {
+      max-width: 100vw;
+      max-height: 100vh;
+      display: block;
+    }
+    canvas { display: block; }
+    .info {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      text-align: center;
+      z-index: 10;
+    }
+    .info button {
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      padding: 4px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      margin-left: 8px;
+    }
+    @media print {
+      .info { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="pattern"></canvas>
+  <div class="info" id="info">
+    9×6 内角点 · 满屏后拍照 · <button onclick="toggleFullscreen()">全屏</button>
+    <button onclick="downloadPng()">下载 PNG</button>
+  </div>
+  <script>
+    const canvas = document.getElementById('pattern');
+    const ctx = canvas.getContext('2d');
+
+    // Config: inner corners = 9x6, so squares = 10x7
+    const cols = 10;   // squares per row
+    const rows = 7;    // squares per column
+    const size = 80;   // pixels per square
+
+    canvas.width = cols * size;
+    canvas.height = rows * size;
+
+    // Draw checkerboard
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        ctx.fillStyle = (i + j) % 2 === 0 ? '#ffffff' : '#000000';
+        ctx.fillRect(i * size, j * size, size, size);
+      }
+    }
+
+    // Draw border
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    function downloadPng() {
+      const link = document.createElement('a');
+      link.download = 'checkerboard_9x6.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  </script>
+</body>
+</html>
