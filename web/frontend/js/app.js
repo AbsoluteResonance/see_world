@@ -1,13 +1,19 @@
 /* App Main — Wire everything together */
 
 let currentAnalysisFileId = null;
+let currentAnalysisUrl = null;
+let currentAnalysisType = null;
+let latestTrajectoryUrl = null;
 
 function openAnalysis(fileId, url, type) {
   currentAnalysisFileId = fileId;
+  currentAnalysisUrl = url;
+  currentAnalysisType = type;
   const section = document.getElementById('analysisSection');
   const preview = document.getElementById('analysisPreview');
   const result = document.getElementById('analysisResult');
   const error = document.getElementById('analysisError');
+  const reconBtn = document.getElementById('start3dReconBtn');
 
   section.hidden = false;
   result.hidden = true;
@@ -17,6 +23,11 @@ function openAnalysis(fileId, url, type) {
     preview.innerHTML = `<video src="${url}" controls muted style="max-width:100%;max-height:300px"></video>`;
   } else {
     preview.innerHTML = `<img src="${url}" alt="preview" style="max-width:100%;max-height:300px" />`;
+  }
+
+  // Show 3D reconstruction button for videos
+  if (reconBtn) {
+    reconBtn.hidden = (type !== 'video');
   }
 
   section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -74,8 +85,127 @@ async function runAnalysis() {
   }
 }
 
-// --- Reconstruction ---
+// --- 3D Reconstruction from uploaded file ---
 async function startReconstruction() {
+  if (!currentAnalysisFileId || currentAnalysisType !== 'video') return;
+
+  const statusDiv = document.getElementById('reconStatus');
+  const statusText = document.getElementById('reconStatusText');
+  const progressText = document.getElementById('reconProgress');
+  const errorDiv = document.getElementById('reconError');
+  const btn = document.getElementById('start3dReconBtn');
+
+  statusDiv.hidden = false;
+  errorDiv.hidden = true;
+  btn.disabled = true;
+  btn.textContent = '重建中…';
+  statusText.textContent = '请求中';
+  progressText.textContent = '5%';
+
+  try {
+    const resp = await fetch(`/api/reconstruct/from-file/${currentAnalysisFileId}`, {
+      method: 'POST',
+    });
+    const body = await resp.json();
+    const job = body.data || {};
+
+    if (!job.job_id) {
+      throw new Error(job.error || '启动失败');
+    }
+
+    // Poll for completion
+    const jobId = job.job_id;
+    let done = false;
+    let attempts = 0;
+    const maxAttempts = 600; // 10 min at 1s intervals
+
+    while (!done && attempts < maxAttempts) {
+      await new Promise(r => setTimeout(r, 1000));
+      attempts++;
+
+      const statusResp = await fetch(`/api/reconstruct/${jobId}`);
+      const statusBody = await statusResp.json();
+      const status = statusBody.data || {};
+
+      statusText.textContent = status.status || 'unknown';
+      progressText.textContent = (status.progress || 0) + '%';
+
+      if (status.status === 'completed' || status.status === 'failed') {
+        done = true;
+
+        if (status.status === 'completed') {
+          statusText.textContent = '完成';
+          progressText.textContent = '100%';
+
+          // Store and load trajectory into 3D viewer
+          latestTrajectoryUrl = `/api/reconstruct/${jobId}/trajectory`;
+          loadTrajectoryFromUrl(latestTrajectoryUrl);
+
+          // Show "加载轨迹" button
+          const trajBtn = document.getElementById('loadTrajectoryBtn');
+          if (trajBtn) trajBtn.style.display = '';
+
+          // Switch to 3D viewer
+          document.getElementById('viewerSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        if (status.error) {
+          errorDiv.textContent = status.error;
+          errorDiv.hidden = false;
+          statusText.textContent = '失败';
+        }
+      }
+    }
+
+    if (!done) {
+      errorDiv.textContent = '重建超时';
+      errorDiv.hidden = false;
+    }
+  } catch (err) {
+    errorDiv.textContent = err.message || '请求失败';
+    errorDiv.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '3D 重建';
+  }
+}
+
+function loadTrajectoryFromUrl(url) {
+  fetch(url)
+    .then(res => res.text())
+    .then(text => {
+      const lines = text.trim().split('\n');
+      const points = [];
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 8) {
+          // TUM format: tx ty tz qx qy qz qw
+          points.push(parseFloat(parts[1]));  // tx
+          points.push(parseFloat(parts[2]));  // ty
+          points.push(parseFloat(parts[3]));  // tz
+        }
+      }
+
+      if (points.length === 0) {
+        document.getElementById('viewer3d-status').textContent = '轨迹无数据';
+        return;
+      }
+
+      // Display as a line + points in 3D viewer
+      if (window.loadTrajectoryPoints) {
+        window.loadTrajectoryPoints(points);
+        document.getElementById('viewer3d-status').textContent = `重建轨迹 (${points.length / 3} 个位姿点)`;
+      } else {
+        loadSamplePointCloud();
+      }
+    })
+    .catch(() => {
+      document.getElementById('viewer3d-status').textContent = '加载轨迹失败';
+    });
+}
+
+// --- Legacy reconstruction (path-based) ---
+async function startReconstructionLegacy() {
   const dir = document.getElementById('reconImagesDir').value.trim();
   if (!dir) return;
 
@@ -142,9 +272,23 @@ async function refreshReconstructions() {
         <div>输入: ${j.images_dir || '—'}</div>
         <div>进度: ${j.progress || 0}%</div>
         ${j.error ? `<div style="color:var(--error)">错误: ${j.error}</div>` : ''}
-        ${j.trajectory_file ? `<div><a href="/api/reconstruct/${j.job_id}/trajectory" target="_blank">下载轨迹</a></div>` : ''}
+        ${j.trajectory_file ? `
+          <div style="margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="javascript:void(0)" class="recon-load-traj" data-url="/api/reconstruct/${j.job_id}/trajectory" style="color:var(--primary)">查看轨迹(3D)</a>
+            <a href="/api/reconstruct/${j.job_id}/trajectory" target="_blank" style="color:var(--text-muted); font-size:0.8rem">下载轨迹</a>
+          </div>` : ''}
       </div>
     `).join('');
+
+    // Click handler for "查看轨迹" links
+    container.querySelectorAll('.recon-load-traj').forEach(el => {
+      el.addEventListener('click', () => {
+        latestTrajectoryUrl = el.dataset.url;
+        loadTrajectoryFromUrl(latestTrajectoryUrl);
+        document.getElementById('loadTrajectoryBtn').style.display = '';
+        document.getElementById('viewerSection').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
   } catch (err) {
     container.innerHTML = '<div class="gallery__empty">加载失败</div>';
   }
@@ -167,6 +311,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const analyzeBtn = document.getElementById('analyzeBtn');
   if (analyzeBtn) analyzeBtn.addEventListener('click', runAnalysis);
 
+  // 3D Reconstruction button
+  const reconBtn = document.getElementById('start3dReconBtn');
+  if (reconBtn) reconBtn.addEventListener('click', startReconstruction);
+
   // Close analysis
   const closeBtn = document.getElementById('closeAnalysis');
   if (closeBtn) {
@@ -184,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 3D Viewer
+  // 3D Viewer — Load Sample
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   if (loadSampleBtn) {
     loadSampleBtn.addEventListener('click', () => {
@@ -193,9 +341,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Reconstruction
+  // 3D Viewer — Load Latest Trajectory
+  const loadTrajBtn = document.getElementById('loadTrajectoryBtn');
+  if (loadTrajBtn) {
+    loadTrajBtn.addEventListener('click', () => {
+      if (latestTrajectoryUrl) {
+        loadTrajectoryFromUrl(latestTrajectoryUrl);
+      }
+    });
+  }
+
+  // Legacy reconstruction
   const startReconBtn = document.getElementById('startReconBtn');
-  if (startReconBtn) startReconBtn.addEventListener('click', startReconstruction);
+  if (startReconBtn) startReconBtn.addEventListener('click', startReconstructionLegacy);
 
   const refreshReconBtn = document.getElementById('refreshReconBtn');
   if (refreshReconBtn) refreshReconBtn.addEventListener('click', refreshReconstructions);

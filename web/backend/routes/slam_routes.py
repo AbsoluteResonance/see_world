@@ -37,6 +37,20 @@ async def create_reconstruction(body: dict):
     return {"code": 0, "message": "success", "data": result}
 
 
+@router.post("/api/reconstruct/from-file/{file_id}")
+async def create_reconstruction_from_file(file_id: str):
+    """Start a reconstruction job from an uploaded file (video or image).
+
+    The file must have been uploaded via /api/upload/image or /api/upload/video.
+    Videos are automatically split into frames before running SLAM.
+    """
+    job = slam_service.reconstruct_from_file(file_id)
+    if job.get("status") in ("error", "failed"):
+        err_msg = job.get("error", "Unknown error") or "Unknown error"
+        raise HTTPException(status_code=400, detail={"code": 40001, "message": err_msg})
+    return {"code": 0, "message": "success", "data": job}
+
+
 @router.get("/api/reconstruct/{job_id}")
 async def get_reconstruction_status(job_id: str):
     """Get reconstruction job status."""

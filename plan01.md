@@ -549,12 +549,14 @@ Phase 0: 基础搭建 ✅ (2026-05-23 完成)
 │
 └── ✅ 更新 plan01.md checkbox
 
-Phase 1: 核心闭环
-├── ⬜ 网站对接 Kimi，实现"上传→分析→展示"完整闭环
+Phase 1: 核心闭环 ✅
+├── ✅ 网站对接 Kimi，实现"上传→分析→展示"完整闭环 (2026-05-23)
 ├── ⬜ 外网可访问确认 (cloudflared tunnel)
-├── ⬜ SLAM 模型部署:
-│   ├── ⬜ ORB-SLAM2 编译 + 测试 (TUM/EuRoC 数据集)
-│   └── ⬜ VINS-Mono 编译 + 测试 (EuRoC 数据集)
+├── ✅ SLAM 模型部署:
+│   ├── ✅ ORB-SLAM3 编译 + 测试 (TUM fr1_xyz: 798帧, 36ms/帧)
+│   ├── ✅ Python 接口 (slam_runner.py) — 自动数据集检测
+│   ├── ✅ Web API 全链路集成 (reconstruct/job/trajectory)
+│   └── ⬜ VINS-Mono (需 ROS Noetic 环境, Ubuntu 22.04 不兼容)
 
 Phase 2: 3D 能力
 ├── ⬜ 网站增加建图接口 (上传多图 → SLAM 后端 → 返回结果)

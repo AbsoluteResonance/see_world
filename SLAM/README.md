@@ -1,60 +1,52 @@
 # SLAM Module — Deployment & Integration
 
-## Overview
+## Status: ✅ ORB-SLAM3 Deployed
 
-This module integrates two open-source SLAM systems for 3D reconstruction from monocular images/video.
-
-| System | Type | IMU Required? | Scale |
-|--------|------|--------------|-------|
-| [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3) | Visual (Monocular/Stereo/RGB-D) + Inertial | Optional | Unknown (monocular) |
-| [VINS-Mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mono) | Visual-Inertial | **Required** | Metric |
+| System | Type | IMU Required? | Status |
+|--------|------|--------------|--------|
+| [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3) | Visual + Inertial (Monocular/Stereo/RGB-D) | Optional | ✅ Compiled & tested |
+| [VINS-Mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mono) | Visual-Inertial | **Required** | ⏳ Needs ROS Noetic (Ubuntu 20.04 / Docker) |
 
 ## Directory Structure
 
 ```
 SLAM/
-├── datasets/              # Test datasets (TUM, EuRoC)
+├── datasets/              # Test datasets (TUM fr1_xyz: 428MB, 798 frames)
+├── outputs/               # SLAM output trajectories & point clouds
 ├── camera_calibration/    # Calibration tools & configs
 ├── python_interface/      # Python wrappers for SLAM
 ├── scripts/               # Setup & data scripts
-├── ORB_SLAM3/             # ORB-SLAM3 source (after setup)
-└── VINS_Mono/             # VINS-Mono source (after setup)
+├── ORB_SLAM3/             # ORB-SLAM3 source (compiled ✅)
+│   ├── Vocabulary/        # ORBvoc.txt (139MB)
+│   └── Examples/          # 11 example executables
+└── VINS_Mono/             # VINS-Mono docs (no ROS on 22.04)
 ```
 
-## Dataset Preparation
+## Benchmark (TUM fr1_xyz)
 
-### TUM RGB-D Dataset (ORB-SLAM3 monocular test)
-http://vision.in.tum.de/data/datasets/rgbd-dataset/download
+| Metric | Value |
+|--------|-------|
+| Image sequence | 798 frames (640×480) |
+| Keyframes generated | 32-39 |
+| Median tracking time | 34 ms/frame |
+| Mean tracking time | 36 ms/frame (≈28 FPS) |
+| Map points | ~424 |
+| Vocab load time | ~15s (139MB) |
 
-```bash
-python scripts/download_dataset.py --dataset tum --sequence fr1_desk
-```
-
-### EuRoC MAV Dataset (VINS-Mono test)
-https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets
-
-```bash
-python scripts/download_dataset.py --dataset euroc --sequence MH_05
-```
-
-## Camera Calibration
-
-Prepare a `calibration.yaml` for your phone/device:
-
-```bash
-python camera_calibration/calibrate.py --images /path/to/checkerboard/images --output config/my_phone.yaml
-```
-
-## Usage via Python Interface
+## Python Interface
 
 ```python
 from python_interface import SLAMRunner
 
-# Run ORB-SLAM3 on a video/images
-runner = SLAMRunner(slam_type="orb_slam3", vocab_path="path/to/ORBvoc.txt", settings_path="path/to/calib.yaml")
-result = runner.run(input_path="/path/to/images")
+# Auto-detect dataset type and pick the right executable
+runner = SLAMRunner(slam_type="orb_slam3")
+result = runner.run("/path/to/tum_dataset")
 print(f"Trajectory: {result['trajectory_file']}")
-print(f"Point cloud: {result['pointcloud_file']}")
+
+# Parse trajectory
+poses = runner.parse_trajectory(result['trajectory_file'])
+for pose in poses:
+    print(f"t={pose['timestamp']} pos=({pose['tx']:.3f}, {pose['ty']:.3f}, {pose['tz']:.3f})")
 ```
 
 ## Web API Integration
@@ -62,5 +54,23 @@ print(f"Point cloud: {result['pointcloud_file']}")
 SLAM reconstruction is exposed via:
 - `POST /api/reconstruct` — Start a reconstruction job
 - `GET /api/reconstruct/{job_id}` — Query job status
-- `GET /api/reconstruct/{job_id}/pointcloud` — Download point cloud PLY
-- `GET /api/reconstruct/{job_id}/trajectory` — Download trajectory
+- `GET /api/reconstruct/{job_id}/pointcloud` — Download point cloud PLY (TBD)
+- `GET /api/reconstruct/{job_id}/trajectory` — Download trajectory (TUM format)
+
+## Dataset Preparation
+
+### TUM RGB-D Dataset
+```bash
+python scripts/download_dataset.py --dataset tum --sequence fr1_desk
+```
+
+### EuRoC MAV Dataset
+```bash
+python scripts/download_dataset.py --dataset euroc --sequence MH_05
+```
+
+## Camera Calibration
+
+```bash
+python camera_calibration/calibrate.py --images /path/to/checkerboard --output config.yaml
+```

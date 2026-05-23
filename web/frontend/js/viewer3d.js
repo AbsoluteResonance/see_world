@@ -171,3 +171,56 @@ function loadSamplePointCloud() {
 // Expose for use from app.js
 window.initViewer3D = initViewer3D;
 window.loadPointCloud = loadPointCloud;
+window.loadSamplePointCloud = loadSamplePointCloud;
+
+/**
+ * Load camera trajectory as a line + point cloud in the scene.
+ * @param {Float32Array|number[]} points - Flat array of x,y,z positions
+ */
+function loadTrajectoryPoints(points) {
+  if (!isInitialized || !points || points.length < 3) return;
+
+  // Remove old trajectory
+  if (window._trajectoryGroup) {
+    scene.remove(window._trajectoryGroup);
+    window._trajectoryGroup.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    });
+  }
+
+  const group = new THREE.Group();
+
+  // Position buffer
+  const positions = new Float32Array(points);
+
+  // Points
+  const ptGeom = new THREE.BufferGeometry();
+  ptGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const ptMat = new THREE.PointsMaterial({
+    color: 0x818cf8,
+    size: 0.03,
+    sizeAttenuation: true,
+  });
+  const ptCloud = new THREE.Points(ptGeom, ptMat);
+  group.add(ptCloud);
+
+  // Connecting line
+  const lineGeom = new THREE.BufferGeometry();
+  lineGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x4f46e5, linewidth: 1 });
+  const line = new THREE.Line(lineGeom, lineMat);
+  group.add(line);
+
+  scene.add(group);
+  window._trajectoryGroup = group;
+
+  // Auto-fit camera
+  const box = new THREE.Box3().setFromObject(group);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z, 0.1);
+  camera.position.set(center.x, center.y, center.z + maxDim * 1.5);
+  camera.lookAt(center);
+}
+window.loadTrajectoryPoints = loadTrajectoryPoints;

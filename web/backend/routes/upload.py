@@ -19,58 +19,48 @@ MAX_IMAGE_BYTES = settings.max_image_size_mb * 1024 * 1024
 MAX_VIDEO_BYTES = settings.max_video_size_mb * 1024 * 1024
 
 
-@router.post("/api/upload/image")
-async def upload_image(file: UploadFile = File(...)):
+async def save_upload(file: UploadFile, dest_dir: Path, max_bytes: int) -> dict:
+    """Save uploaded file by streaming to disk (memory-efficient)."""
     if not file.filename or not is_allowed_ext(file.filename):
         raise HTTPException(status_code=400, detail={"code": 40002, "message": "Unsupported file format"})
 
-    content = await file.read()
-    if len(content) > MAX_IMAGE_BYTES:
-        raise HTTPException(status_code=400, detail={"code": 40003, "message": f"Image too large (max {settings.max_image_size_mb}MB)"})
-
     fname = make_storage_filename(file.filename)
-    dest = IMAGE_DIR / fname
-    dest.write_bytes(content)
+    dest = dest_dir / fname
 
+    total = 0
+    with open(dest, "wb") as f:
+        while chunk := await file.read(64 * 1024):  # 64KB chunks
+            total += len(chunk)
+            if total > max_bytes:
+                f.close()
+                dest.unlink(missing_ok=True)
+                raise HTTPException(status_code=400, detail={
+                    "code": 40003,
+                    "message": f"File too large (max {max_bytes // (1024*1024)}MB)"
+                })
+            f.write(chunk)
+
+    subdir = dest_dir.name  # "images" or "videos"
     return {
-        "code": 0,
-        "message": "success",
-        "data": {
-            "file_id": fname.split("_")[1] if len(fname.split("_")) > 1 else fname,
-            "filename": fname,
-            "original_name": file.filename,
-            "size": len(content),
-            "url": f"/uploads/images/{fname}",
-            "type": "image",
-        },
+        "file_id": fname.split("_")[1] if len(fname.split("_")) > 1 else fname,
+        "filename": fname,
+        "original_name": file.filename,
+        "size": total,
+        "url": f"/uploads/{subdir}/{fname}",
+        "type": "image" if dest_dir == IMAGE_DIR else "video",
     }
+
+
+@router.post("/api/upload/image")
+async def upload_image(file: UploadFile = File(...)):
+    result = await save_upload(file, IMAGE_DIR, MAX_IMAGE_BYTES)
+    return {"code": 0, "message": "success", "data": result}
 
 
 @router.post("/api/upload/video")
 async def upload_video(file: UploadFile = File(...)):
-    if not file.filename or not is_allowed_ext(file.filename):
-        raise HTTPException(status_code=400, detail={"code": 40002, "message": "Unsupported file format"})
-
-    content = await file.read()
-    if len(content) > MAX_VIDEO_BYTES:
-        raise HTTPException(status_code=400, detail={"code": 40003, "message": f"Video too large (max {settings.max_video_size_mb}MB)"})
-
-    fname = make_storage_filename(file.filename)
-    dest = VIDEO_DIR / fname
-    dest.write_bytes(content)
-
-    return {
-        "code": 0,
-        "message": "success",
-        "data": {
-            "file_id": fname.split("_")[1] if len(fname.split("_")) > 1 else fname,
-            "filename": fname,
-            "original_name": file.filename,
-            "size": len(content),
-            "url": f"/uploads/videos/{fname}",
-            "type": "video",
-        },
-    }
+    result = await save_upload(file, VIDEO_DIR, MAX_VIDEO_BYTES)
+    return {"code": 0, "message": "success", "data": result}
 
 
 @router.post("/api/upload/batch")
@@ -102,6 +92,8 @@ async def list_files(page: int = 1, size: int = 20):
     for subdir, ftype in [(IMAGE_DIR, "image"), (VIDEO_DIR, "video")]:
         if subdir.exists():
             for f in sorted(subdir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+                if f.name.startswith('.'):
+                    continue  # skip hidden files (.gitkeep)
                 all_files.append({
                     "file_id": f.name.split("_")[1] if len(f.name.split("_")) > 1 else f.name,
                     "filename": f.name,
