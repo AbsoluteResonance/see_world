@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     slam3r_model_l2w: str = "siyan824/slam3r_l2w"
     slam3r_device: str = "cuda"
     slam3r_output_dir: str = ""
+    slam3r_hf_cache: str = "/autodl-fs/data/projects/see_world/.hf_cache"
 
     class Config:
         env_prefix = "SEE_WORLD_"

@@ -48,3 +48,9 @@ web/uploads/images/
 web/uploads/videos/
 web/uploads/.cache/
 web/reconstructions/
+
+# HuggingFace model cache (large, on data disk)
+.hf_cache/
+
+# SLAM3R demo media (large, not needed for code)
+SLAM/SLAM3R/media/

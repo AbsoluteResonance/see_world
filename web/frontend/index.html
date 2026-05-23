@@ -12,7 +12,7 @@
 <body>
   <header class="header">
     <h1>See World</h1>
-    <p class="subtitle">上传 <p class="subtitle">上传 &amp; 场景理解</p>amp; 场景理解 · <a href="/static/calibrate.html" style="color:var(--primary);font-size:0.85rem">相机标定</a></p>
+    <p class="subtitle">上传 &amp; 场景理解 · <a href="/static/calibrate.html" style="color:var(--primary);font-size:0.85rem">相机标定</a></p>
   </header>
 
   <main class="container">
@@ -133,7 +133,7 @@
     <section class="recon-section" id="slam3rSection">
       <div class="section-header">
         <h2>SLAM3R 稠密重建 <span style="font-size:0.7rem;color:var(--success);font-weight:normal;">深度学习</span></h2>
-        <button class="btn-refresh" id="refreshSlam3rBtn" onclick="if(window.slam3rList)window.slam3rList()">刷新</button>
+        <button class="btn-refresh" id="refreshSlam3rBtn">刷新</button>
       </div>
       <div class="recon-hint" style="text-align:center; color:var(--text-muted); padding:1rem; font-size:0.85rem;">
         在画廊中选择视频 → 点击"SLAM3R 稠密重建" → 自动生成百万级点云
@@ -157,6 +157,7 @@
           </div>
         </div>
       </div>
+      <div class="recon-jobs" id="slam3rJobs"></div>
     </section>
 
     <!-- SLAM3R Online Streaming Panel -->

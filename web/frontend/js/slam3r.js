@@ -167,15 +167,15 @@
           const points = msg.points || [];
           const total = msg.total_points || 0;
           const frameCount = msg.frame_count || 0;
+          const pose = msg.pose || null;
 
           if (statsEl) {
-            statsEl.textContent = `帧: ${frameCount} | 点: ${total.toLocaleString()}`;
+            statsEl.textContent = `帧: ${frameCount} | 点: ${total.toLocaleString()}${pose ? ' | 已定位' : ''}`;
           }
 
-          // Incremental update to dense viewer
+          // Incremental update to dense viewer via addPoints
           if (window.denseViewer && points.length > 0) {
-            // For now, re-load full cloud periodically
-            // TODO: true incremental point addition
+            window.denseViewer.addPoints(points);
           }
         }
 
@@ -269,6 +269,52 @@
     streamId = null;
   }
 
+  // ── Job Listing ──
+
+  async function listJobs() {
+    const container = document.getElementById('slam3rJobs');
+    if (!container) return;
+
+    try {
+      const resp = await fetch('/api/slam3r/reconstruct');
+      const body = await resp.json();
+      const jobs = body.data || [];
+
+      if (jobs.length === 0) {
+        container.innerHTML = '<div class="gallery__empty">暂无 SLAM3R 重建任务</div>';
+        return;
+      }
+
+      container.innerHTML = jobs.map(j => `
+        <div class="recon-job">
+          <div class="recon-job__header">
+            <span class="recon-job__id">${j.job_id}</span>
+            <span class="recon-job__status ${j.status}">${j.status}</span>
+          </div>
+          <div>进度: ${j.progress || 0}%</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)">类型: ${j.slam_type || 'slam3r'}</div>
+          ${j.error ? `<div style="color:var(--error)">错误: ${j.error}</div>` : ''}
+          ${j.pointcloud_file ? `
+            <div style="margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
+              <a href="javascript:void(0)" class="slam3r-load-cloud" data-url="/api/slam3r/reconstruct/${j.job_id}/pointcloud" style="color:var(--primary)">查看点云</a>
+              <a href="/api/slam3r/reconstruct/${j.job_id}/pointcloud" target="_blank" style="color:var(--text-muted); font-size:0.8rem">下载 PLY</a>
+            </div>` : ''}
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.slam3r-load-cloud').forEach(el => {
+        el.addEventListener('click', () => {
+          if (window.denseViewer) {
+            window.denseViewer.loadPointCloud(el.dataset.url);
+          }
+          document.getElementById('denseViewerSection').scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+    } catch (err) {
+      container.innerHTML = '<div class="gallery__empty">加载失败: ' + err.message + '</div>';
+    }
+  }
+
   // ── Init ──
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -282,12 +328,69 @@
 
     const stopBtn = document.getElementById('stopStreamBtn');
     if (stopBtn) stopBtn.addEventListener('click', stopSlam3rStream);
+
+    // Refresh button
+    const refreshBtn = document.getElementById('refreshSlam3rBtn');
+    if (refreshBtn) refreshBtn.addEventListener('click', listJobs);
+
+    // Load initial job list
+    listJobs();
+
+    // Check SLAM3R backend status (GPU, model availability)
+    checkStatus();
   });
+
+  async function checkStatus() {
+    const hintEl = document.querySelector('#slam3rSection .recon-hint small');
+    if (!hintEl) return;
+
+    try {
+      const resp = await fetch('/api/slam3r/status');
+      const body = await resp.json();
+      const data = body.data || {};
+
+      const gpu = data.gpu || {};
+      const installed = data.slam3r_installed || {};
+      const ready = data.ready || false;
+
+      let statusText = '';
+      if (gpu.available) {
+        statusText = `GPU: ${gpu.name || 'OK'} | ${gpu.memory_gb || '?'} GB`;
+        if (ready) {
+          statusText += ' · 模型就绪 ✓';
+          hintEl.style.color = 'var(--success)';
+        } else {
+          statusText += ' · 模型未加载';
+        }
+      } else {
+        statusText = 'GPU 不可用 (stub 模式)';
+        hintEl.style.color = 'var(--text-muted)';
+      }
+
+      // Update SLAM3R section header with status
+      const header = document.querySelector('#slam3rSection .section-header h2');
+      if (header) {
+        const existingBadge = header.querySelector('.status-badge');
+        if (existingBadge) existingBadge.remove();
+        const badge = document.createElement('span');
+        badge.className = 'status-badge';
+        badge.style.cssText = 'font-size:0.65rem;font-weight:normal;margin-left:0.5rem;padding:0.1rem 0.4rem;border-radius:4px;background:' +
+          (gpu.available ? 'rgba(34,197,94,0.2);color:var(--success)' : 'rgba(148,163,184,0.2);color:var(--text-muted)');
+        badge.textContent = gpu.available ? 'GPU' : 'CPU';
+        header.appendChild(badge);
+      }
+
+      hintEl.textContent = statusText;
+    } catch (err) {
+      hintEl.textContent = '无法获取状态: ' + err.message;
+    }
+  }
 
   // Expose for cross-module access
   window.slam3r = {
     startSlam3rReconstruction,
     startSlam3rStream,
     stopSlam3rStream,
+    listJobs,
   };
 })();

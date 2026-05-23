@@ -29,6 +29,17 @@ function openAnalysis(fileId, url, type) {
 
   // Show action buttons
   if (reconBtn) reconBtn.hidden = (type !== 'video');
+
+  // SLAM3R button — also only for videos
+  const slam3rBtn = document.getElementById('startSlam3rBtn');
+  if (slam3rBtn) {
+    const isVisible = (type === 'video');
+    slam3rBtn.style.display = isVisible ? '' : 'none';
+  }
+  // Hide previous SLAM3R result when switching files
+  const slam3rResult = document.getElementById('slam3rResult');
+  if (slam3rResult) slam3rResult.hidden = true;
+
   const renameBtn = document.getElementById('renameFileBtn');
   const deleteBtn = document.getElementById('deleteFileBtn');
   if (renameBtn) renameBtn.style.display = '';

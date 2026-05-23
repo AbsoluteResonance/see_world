@@ -1,0 +1,6 @@
+# for visualization and evaluation
+open3d
+imageio[ffmpeg]
+scikit-image
+# for rendering depths in scannetpp
+pyrender 

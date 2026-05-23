@@ -8,6 +8,8 @@ const PRECACHE_URLS = [
   '/static/js/upload.js',
   '/static/js/gallery.js',
   '/static/js/viewer3d.js',
+  '/static/js/viewer_dense.js',
+  '/static/js/slam3r.js',
 ];
 
 // Install — pre-cache core assets
