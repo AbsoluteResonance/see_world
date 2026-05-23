@@ -68,10 +68,10 @@
       <div class="analysis-error" id="analysisError" hidden></div>
     </section>
 
-    <!-- 3D Viewer -->
+    <!-- Trajectory Viewer (renamed from 3D 点云查看器) -->
     <section class="viewer-section" id="viewerSection">
       <div class="section-header">
-        <h2>3D 点云查看器</h2>
+        <h2>轨迹查看器</h2>
         <div class="viewer-toolbar">
           <button class="btn-refresh" id="loadSampleBtn">加载示例</button>
           <button class="btn-refresh" id="loadTrajectoryBtn" style="display:none">加载轨迹</button>
@@ -82,7 +82,24 @@
         <p class="viewer3d-placeholder" id="viewer3d-status">上传视频 → 点击"3D 重建"查看轨迹</p>
       </div>
       <div class="viewer-controls">
-        <span class="viewer-hint">鼠标拖动旋转 · 滚轮缩放 · 右键平移 · 方向键移动 · R 重置视角</span>
+        <span class="viewer-hint">鼠标拖动旋转 · 滚轮缩放 · 右键平移 · R 重置视角</span>
+      </div>
+    </section>
+
+    <!-- Dense Point Cloud Viewer (new) -->
+    <section class="viewer-section" id="denseViewerSection">
+      <div class="section-header">
+        <h2>3D 点云查看器 <span style="font-size:0.7rem;color:var(--primary);font-weight:normal;">稠密建图</span></h2>
+        <div class="viewer-toolbar">
+          <button class="btn-refresh" id="loadDenseBtn" style="display:none">加载稠密点云</button>
+          <button class="btn-refresh" id="resetDenseViewBtn">重置视角</button>
+        </div>
+      </div>
+      <div id="denseViewer3d-container" class="viewer3d-container">
+        <p class="viewer3d-placeholder" id="denseViewer3d-status">完成 3D 重建后，点击"生成稠密点云"查看场景</p>
+      </div>
+      <div class="viewer-controls">
+        <span class="viewer-hint">鼠标拖动旋转 · 滚轮缩放 · 右键平移 · R 重置视角</span>
       </div>
     </section>
 
@@ -94,6 +111,9 @@
       </div>
       <div class="recon-hint" style="text-align:center; color:var(--text-muted); padding:1rem; font-size:0.85rem;">
         在画廊中点击上传的视频文件，在分析面板中点击"3D 重建"按钮即可开始建图
+      </div>
+      <div style="text-align:center; margin:0.5rem 0;">
+        <button class="btn-analyze" id="denseReconBtn" style="display:none; background:var(--primary);">生成稠密点云</button>
       </div>
       <div class="recon-status" id="reconStatus" hidden>
         <div class="recon-status__item">
@@ -116,9 +136,10 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="/static/js/upload.js?v=2"></script>
-  <script src="/static/js/gallery.js?v=2"></script>
-  <script src="/static/js/viewer3d.js?v=2"></script>
-  <script src="/static/js/app.js?v=2"></script>
+  <script src="/static/js/upload.js?v=3"></script>
+  <script src="/static/js/gallery.js?v=3"></script>
+  <script src="/static/js/viewer3d.js?v=3"></script>
+  <script src="/static/js/viewer_dense.js?v=3"></script>
+  <script src="/static/js/app.js?v=3"></script>
 </body>
 </html>

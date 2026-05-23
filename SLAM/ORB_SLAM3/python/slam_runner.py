@@ -23,7 +23,7 @@ class SLAMRunner:
         "mono_tum",
     ]
     DEFAULT_SETTINGS = {
-        "mono_tum":              "Examples/Monocular/TUM1.yaml",
+        "mono_tum":              "Examples/Monocular/phone_calibration.yaml",
         "mono_kitti":            "Examples/Monocular/KITTI00-02.yaml",
         "mono_euroc":            "Examples/Monocular/EuRoC.yaml",
         "mono_tum_vi":           "Examples/Monocular/TUM-VI.yaml",

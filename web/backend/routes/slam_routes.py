@@ -73,13 +73,36 @@ async def download_trajectory(job_id: str):
 
 @router.get("/api/reconstruct/{job_id}/pointcloud")
 async def download_pointcloud(job_id: str):
-    """Download point cloud PLY file for a completed job."""
+    """Download sparse point cloud PLY file for a completed job."""
     job = slam_service.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail={"code": 404, "message": "Job not found"})
     if not job.get("pointcloud_file") or not Path(job["pointcloud_file"]).exists():
         raise HTTPException(status_code=404, detail={"code": 404, "message": "Point cloud file not available"})
     return FileResponse(job["pointcloud_file"])
+
+
+@router.post("/api/reconstruct/{job_id}/dense")
+async def generate_dense_pointcloud(job_id: str):
+    """Run dense point cloud reconstruction for a completed SLAM job."""
+    job = slam_service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail={"code": 404, "message": "Job not found"})
+    result = slam_service.generate_dense_pointcloud(job_id)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail={"code": 40001, "message": result.get("error", "Unknown error")})
+    return {"code": 0, "message": "success", "data": result}
+
+
+@router.get("/api/reconstruct/{job_id}/dense-pointcloud")
+async def download_dense_pointcloud(job_id: str):
+    """Download dense point cloud PLY file."""
+    job = slam_service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail={"code": 404, "message": "Job not found"})
+    if not job.get("dense_pointcloud_file") or not Path(job["dense_pointcloud_file"]).exists():
+        raise HTTPException(status_code=404, detail={"code": 404, "message": "Dense point cloud not available. Run POST /api/reconstruct/{id}/dense first."})
+    return FileResponse(job["dense_pointcloud_file"])
 
 
 @router.get("/api/reconstruct")

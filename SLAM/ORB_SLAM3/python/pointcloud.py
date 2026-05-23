@@ -15,9 +15,9 @@ import numpy as np
 
 # Default TUM RGB-D camera intrinsics (from TUM1.yaml used by ORB-SLAM3)
 DEFAULT_K = np.array([
-    [517.306, 0,       318.643],
-    [0,       516.469, 255.314],
-    [0,       0,       1]
+    [659.1300, 0,       326.9158],
+    [0,        370.2192, 240.9877],
+    [0,        0,        1]
 ], dtype=np.float64)
 
 MAX_REPROJ_ERROR = 8.0   # pixels — discard bad triangulations
@@ -153,29 +153,41 @@ def match_pose_to_frames(poses: list[dict], frames_list: list[str]) -> list[tupl
     return matched
 
 
+def _make_mask(img: np.ndarray, threshold: int = 10) -> np.ndarray | None:
+    """Create a mask excluding near-black letterbox borders (all channels < threshold)."""
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
+    # Erode slightly to avoid features right at the content border
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.erode(mask, kernel, iterations=1)
+    return mask
+
+
 def triangulate_pair(img1: np.ndarray, img2: np.ndarray,
                      P1: np.ndarray, P2: np.ndarray,
                      K: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Extract features, match, triangulate, return points (Nx3) and colors (Nx3)."""
-    # Detect features (use ORB with more features, or SIFT if available)
+    # Build mask to avoid letterbox borders
+    mask1 = _make_mask(img1)
+    mask2 = _make_mask(img2)
+
+    # Detect features
     try:
-        # Try SIFT first for better matching
-        sift = cv2.SIFT_create(nfeatures=3000)
-        kp1, des1 = sift.detectAndCompute(img1, None)
-        kp2, des2 = sift.detectAndCompute(img2, None)
+        sift = cv2.SIFT_create(nfeatures=5000, contrastThreshold=0.03, edgeThreshold=10)
+        kp1, des1 = sift.detectAndCompute(img1, mask1)
+        kp2, des2 = sift.detectAndCompute(img2, mask2)
         norm = cv2.NORM_L2
     except Exception:
         orb = cv2.ORB_create(nfeatures=3000)
-        kp1, des1 = orb.detectAndCompute(img1, None)
-        kp2, des2 = orb.detectAndCompute(img2, None)
+        kp1, des1 = orb.detectAndCompute(img1, mask1)
+        kp2, des2 = orb.detectAndCompute(img2, mask2)
         norm = cv2.NORM_HAMMING
 
     if des1 is None or des2 is None or len(kp1) < 10 or len(kp2) < 10:
         return np.empty((0, 3)), np.empty((0, 3))
 
-    # Match with FLANN-based matcher for SIFT, BF for ORB
+    # FLANN matcher for SIFT, BF for ORB
     if norm == cv2.NORM_L2:
-        # FLANN for SIFT
         FLANN_INDEX_KDTREE = 1
         index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
         search_params = dict(checks=50)
@@ -185,27 +197,25 @@ def triangulate_pair(img1: np.ndarray, img2: np.ndarray,
 
     matches = matcher.knnMatch(des1, des2, k=2)
 
-    # Ratio test (Lowe's)
+    # Ratio test
     good_matches = []
     for m_pair in matches:
         if len(m_pair) >= 2:
             m, n = m_pair
-            if m.distance < 0.75 * n.distance:
+            if m.distance < 0.8 * n.distance:
                 good_matches.append(m)
 
     if len(good_matches) < 8:
         return np.empty((0, 3)), np.empty((0, 3))
 
-    # Get matching point coordinates
-    pts1 = np.float32([kp1[m.queryIdx].pt for m in good_matches]).T  # 2xN
-    pts2 = np.float32([kp2[m.trainIdx].pt for m in good_matches]).T  # 2xN
+    pts1 = np.float32([kp1[m.queryIdx].pt for m in good_matches]).T
+    pts2 = np.float32([kp2[m.trainIdx].pt for m in good_matches]).T
 
     # Triangulate
     pts4d = cv2.triangulatePoints(P1, P2, pts1, pts2)
-    pts3d = (pts4d[:3] / pts4d[3]).T  # Nx3
+    pts3d = (pts4d[:3] / pts4d[3]).T
 
-    # Filter by reprojection error
-    # Project back to both cameras
+    # Reprojection filter
     pts_h = np.hstack([pts3d, np.ones((pts3d.shape[0], 1))])
     proj1 = (P1 @ pts_h.T).T
     proj1 = proj1[:, :2] / proj1[:, 2:3]
@@ -219,7 +229,7 @@ def triangulate_pair(img1: np.ndarray, img2: np.ndarray,
     pts3d = pts3d[valid]
     good_idx = np.where(valid)[0]
 
-    # Get colors from source image
+    # Colors from source image
     colors = np.zeros((len(pts3d), 3), dtype=np.uint8)
     for i, idx in enumerate(good_idx):
         pt = kp1[good_matches[idx].queryIdx].pt
@@ -228,7 +238,7 @@ def triangulate_pair(img1: np.ndarray, img2: np.ndarray,
             b, g, r = img1[v, u]
             colors[i] = [r, g, b]
 
-    # Filter points behind camera (negative depth)
+    # Filter points behind camera
     valid_z = pts3d[:, 2] > 0
     pts3d = pts3d[valid_z]
     colors = colors[valid_z]
@@ -301,14 +311,16 @@ def load_calibration_yaml(yaml_path: str) -> np.ndarray:
 
 
 def build_pointcloud(frames_dir: str, trajectory_file: str,
-                     output_ply: str, K: np.ndarray | None = None) -> str:
+                     output_ply: str, K: np.ndarray | None = None,
+                     calibration_yaml: str | None = None) -> str:
     """Generate a colored PLY point cloud from SLAM trajectory + frames.
 
     Args:
         frames_dir: Directory containing rgb.txt and rgb/ subfolder
         trajectory_file: TUM-format trajectory file
         output_ply: Path for output PLY file
-        K: Camera intrinsic matrix (3x3). Defaults to TUM1.yaml values.
+        K: Camera intrinsic matrix (3x3). If None, uses calibration_yaml or defaults.
+        calibration_yaml: Path to ORB-SLAM3 format YAML for intrinsics.
 
     Returns:
         Path to output PLY file (or empty string on failure)
@@ -337,24 +349,26 @@ def build_pointcloud(frames_dir: str, trajectory_file: str,
         return ""
     h, w = first_img.shape[:2]
 
-    # Use default K if provided, otherwise estimate from image dimensions
+    # Determine K matrix
     if K is None:
-        K = DEFAULT_K.copy()
-        # Scale intrinsics to match actual image size relative to default (640x480)
-        scale_x = w / 640.0
-        scale_y = h / 480.0
-        K[0, 0] *= scale_x   # fx
-        K[1, 1] *= scale_y   # fy
-        K[0, 2] *= scale_x   # cx
-        K[1, 2] *= scale_y   # cy
+        if calibration_yaml and Path(calibration_yaml).exists():
+            K = load_calibration_yaml(calibration_yaml)
+        else:
+            K = DEFAULT_K.copy()
+            scale_x = w / 640.0
+            scale_y = h / 480.0
+            K[0, 0] *= scale_x
+            K[1, 1] *= scale_y
+            K[0, 2] *= scale_x
+            K[1, 2] *= scale_y
 
     print(f"[pointcloud] Image size: {w}x{h}, K diag: [{K[0,0]:.1f}, {K[1,1]:.1f}]")
 
     all_points = []
     all_colors = []
 
-    # Use every pair (i, i+2) for larger baseline = better triangulation
-    pair_gap = 2
+    # Use adjacent pose pairs and skip only near-identical ones
+    pair_gap = 1
     for i in range(0, len(matched) - pair_gap):
         pose1, img_path1 = matched[i]
         pose2, img_path2 = matched[i + pair_gap]

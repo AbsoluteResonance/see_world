@@ -4,6 +4,7 @@ let currentAnalysisFileId = null;
 let currentAnalysisUrl = null;
 let currentAnalysisType = null;
 let latestTrajectoryUrl = null;
+let latestJobId = null;
 
 function openAnalysis(fileId, url, type) {
   currentAnalysisFileId = fileId;
@@ -156,6 +157,7 @@ async function startReconstruction() {
 
     // Poll for completion
     const jobId = job.job_id;
+    latestJobId = jobId;
     let done = false;
     let attempts = 0;
     const maxAttempts = 600; // 10 min at 1s intervals
@@ -200,7 +202,17 @@ async function startReconstruction() {
               }, 200);
             }
 
-            // Switch to 3D viewer
+            // Show "生成稠密点云" button
+            const denseBtn = document.getElementById('denseReconBtn');
+            if (denseBtn) {
+              denseBtn.style.display = '';
+              if (!denseBtn._listenerAttached) {
+                denseBtn.addEventListener('click', startDenseReconstruction);
+                denseBtn._listenerAttached = true;
+              }
+            }
+
+            // Switch to trajectory viewer
             document.getElementById('viewerSection').scrollIntoView({ behavior: 'smooth' });
           } else {
             statusText.textContent = '无轨迹';
@@ -226,6 +238,46 @@ async function startReconstruction() {
   } finally {
     btn.disabled = false;
     btn.textContent = '3D 重建';
+  }
+}
+
+async function startDenseReconstruction() {
+  const btn = document.getElementById('denseReconBtn');
+  if (!btn || !latestJobId) return;
+
+  btn.disabled = true;
+  btn.textContent = '生成中…（约 1-3 分钟）';
+
+  try {
+    const resp = await fetch(`/api/reconstruct/${latestJobId}/dense`, { method: 'POST' });
+    const body = await resp.json();
+    if (body.code !== 0) throw new Error(body.detail?.message || body.message || '生成失败');
+
+    btn.textContent = '稠密点云已生成 ✓';
+
+    // Show "加载稠密点云" button
+    const loadDenseBtn = document.getElementById('loadDenseBtn');
+    if (loadDenseBtn) {
+      loadDenseBtn.style.display = '';
+      loadDenseBtn.onclick = () => {
+        if (window.denseViewer) {
+          window.denseViewer.loadPointCloud(`/api/reconstruct/${latestJobId}/dense-pointcloud`);
+        }
+        document.getElementById('denseViewerSection').scrollIntoView({ behavior: 'smooth' });
+      };
+    }
+
+    // Auto-load?
+    setTimeout(() => {
+      if (window.denseViewer) {
+        window.denseViewer.loadPointCloud(`/api/reconstruct/${latestJobId}/dense-pointcloud`);
+      }
+      document.getElementById('denseViewerSection').scrollIntoView({ behavior: 'smooth' });
+    }, 500);
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '重试生成稠密点云';
+    alert('稠密建图失败: ' + err.message);
   }
 }
 
