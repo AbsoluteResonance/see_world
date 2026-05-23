@@ -200,7 +200,7 @@ section {
   background: var(--surface-hover);
 }
 
-/* Analysis Panel */
+/* File Preview Panel */
 .analysis-section {
   background: var(--surface);
   border-radius: 12px;
@@ -215,34 +215,6 @@ section {
   max-height: 300px;
   border-radius: 8px;
 }
-.analysis-input {
-  display: flex;
-  gap: 0.5rem;
-}
-.analysis-input textarea {
-  flex: 1;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.5rem;
-  font-size: 0.9rem;
-  resize: vertical;
-  font-family: inherit;
-}
-.btn-analyze {
-  padding: 0.5rem 1.25rem;
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-.btn-analyze:hover {
-  background: var(--primary-hover);
-}
 .btn-close {
   background: none;
   border: none;
@@ -252,36 +224,6 @@ section {
 }
 .btn-close:hover {
   color: var(--text);
-}
-
-.analysis-result {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: var(--bg);
-  border-radius: 8px;
-}
-.analysis-result h3 {
-  font-size: 0.95rem;
-  margin-bottom: 0.5rem;
-}
-.analysis-result__content {
-  font-size: 0.9rem;
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-.analysis-result__meta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 0.5rem;
-}
-.analysis-error {
-  margin-top: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid var(--error);
-  border-radius: 6px;
-  color: var(--error);
-  font-size: 0.85rem;
 }
 
 /* Footer */

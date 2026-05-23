@@ -44,49 +44,20 @@
       </div>
     </section>
 
-    <!-- Analysis Panel -->
+    <!-- File Preview Panel -->
     <section class="analysis-section" id="analysisSection" hidden>
       <div class="section-header">
-        <h2>AI 分析</h2>
+        <h2>文件预览</h2>
         <button class="btn-close" id="closeAnalysis">&times;</button>
       </div>
       <div class="analysis-preview" id="analysisPreview"></div>
-      <div class="analysis-input">
-        <textarea id="analysisPrompt" rows="2" placeholder="输入分析提示词…">请详细描述这张图片的内容，包括场景、物体、人物、颜色、位置关系等</textarea>
-        <button class="btn-analyze" id="analyzeBtn">分析</button>
-      </div>
       <div style="margin-top:0.5rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <button class="btn-analyze" id="start3dReconBtn" hidden style="background:var(--success);">3D 重建</button>
         <button class="btn-refresh" id="renameFileBtn" style="display:none">重命名</button>
         <button class="btn-refresh" id="deleteFileBtn" style="display:none; color:var(--error); border-color:var(--error);">删除</button>
       </div>
-      <div class="analysis-result" id="analysisResult" hidden>
-        <h3>分析结果</h3>
-        <div class="analysis-result__content" id="analysisContent"></div>
-        <div class="analysis-result__meta" id="analysisMeta"></div>
-      </div>
-      <div class="analysis-error" id="analysisError" hidden></div>
     </section>
 
-    <!-- Trajectory Viewer (renamed from 3D 点云查看器) -->
-    <section class="viewer-section" id="viewerSection">
-      <div class="section-header">
-        <h2>轨迹查看器</h2>
-        <div class="viewer-toolbar">
-          <button class="btn-refresh" id="loadSampleBtn">加载示例</button>
-          <button class="btn-refresh" id="loadTrajectoryBtn" style="display:none">加载轨迹</button>
-          <button class="btn-refresh" id="resetViewBtn">重置视角</button>
-        </div>
-      </div>
-      <div id="viewer3d-container" class="viewer3d-container">
-        <p class="viewer3d-placeholder" id="viewer3d-status">上传视频 → 点击"3D 重建"查看轨迹</p>
-      </div>
-      <div class="viewer-controls">
-        <span class="viewer-hint">鼠标拖动旋转 · 滚轮缩放 · 右键平移 · R 重置视角</span>
-      </div>
-    </section>
-
-    <!-- Dense Point Cloud Viewer (new) -->
+    <!-- Dense Point Cloud Viewer -->
     <section class="viewer-section" id="denseViewerSection">
       <div class="section-header">
         <h2>3D 点云查看器 <span style="font-size:0.7rem;color:var(--primary);font-weight:normal;">稠密建图</span></h2>
@@ -103,33 +74,7 @@
       </div>
     </section>
 
-    <!-- ORB-SLAM3 Reconstruction Panel (Phase 01) -->
-    <section class="recon-section" id="reconSection">
-      <div class="section-header">
-        <h2>3D 重建 (ORB-SLAM3)</h2>
-        <button class="btn-refresh" id="refreshReconBtn">刷新状态</button>
-      </div>
-      <div class="recon-hint" style="text-align:center; color:var(--text-muted); padding:1rem; font-size:0.85rem;">
-        在画廊中点击上传的视频文件，在分析面板中点击"3D 重建"按钮即可开始建图
-      </div>
-      <div style="text-align:center; margin:0.5rem 0;">
-        <button class="btn-analyze" id="denseReconBtn" style="display:none; background:var(--primary);">生成稠密点云</button>
-      </div>
-      <div class="recon-status" id="reconStatus" hidden>
-        <div class="recon-status__item">
-          <span>状态:</span>
-          <span id="reconStatusText">—</span>
-        </div>
-        <div class="recon-status__item">
-          <span>进度:</span>
-          <span id="reconProgress">0%</span>
-        </div>
-        <div class="recon-status__item recon-status__error" id="reconError" hidden></div>
-      </div>
-      <div class="recon-jobs" id="reconJobs"></div>
-    </section>
-
-    <!-- SLAM3R Panel (Phase 02 — Deep Dense Reconstruction) -->
+    <!-- SLAM3R Panel (Deep Dense Reconstruction) -->
     <section class="recon-section" id="slam3rSection">
       <div class="section-header">
         <h2>SLAM3R 稠密重建 <span style="font-size:0.7rem;color:var(--success);font-weight:normal;">深度学习</span></h2>
@@ -191,7 +136,6 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="/static/js/upload.js?v=3"></script>
   <script src="/static/js/gallery.js?v=3"></script>
-  <script src="/static/js/viewer3d.js?v=3"></script>
   <script src="/static/js/viewer_dense.js?v=4"></script>
   <script src="/static/js/slam3r.js?v=1"></script>
   <script src="/static/js/app.js?v=4"></script>

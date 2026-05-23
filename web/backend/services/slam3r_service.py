@@ -96,7 +96,7 @@ def check_gpu() -> dict:
         available = torch.cuda.is_available()
         if available:
             props = torch.cuda.get_device_properties(0)
-            return {"available": True, "name": props.name, "memory_gb": round(props.total_mem / 1e9, 1)}
+            return {"available": True, "name": props.name, "memory_gb": round(props.total_memory / 1e9, 1)}
         return {"available": False, "reason": "torch.cuda.is_available() returned False"}
     except ImportError:
         return {"available": False, "reason": "torch not installed"}
@@ -150,10 +150,89 @@ def update_job(job_id: str, **kwargs) -> dict | None:
     return job
 
 
+def reconstruct_from_file(file_id: str) -> dict:
+    """Start SLAM3R reconstruction from an uploaded file (video)."""
+    found = _find_uploaded_file(file_id)
+    if not found:
+        return {"status": "error", "error": f"File not found: {file_id}"}
+
+    file_path, file_type = found
+    job = create_job()
+    job_id = job["job_id"]
+    output_dir = job["output_dir"]
+
+    update_job(job_id, status="preparing", progress=5)
+
+    try:
+        if file_type != "video":
+            update_job(job_id, status="failed",
+                       error="SLAM3R requires video input (multiple frames)",
+                       progress=0)
+            return _jobs[job_id]
+
+        update_job(job_id, status="extracting", progress=10)
+
+        # Try direct inference first (uses shared models, faster)
+        if _shared_i2p_model is not None or _load_models():
+            update_job(job_id, status="running", progress=30)
+            try:
+                result = _direct_reconstruct_from_video(file_path, output_dir)
+                completed = result.get("status") == "completed"
+                update_job(job_id,
+                           status=result.get("status", "error"),
+                           pointcloud_file=result.get("pointcloud_file", ""),
+                           poses_file=result.get("poses_file", ""),
+                           error=result.get("error", ""),
+                           progress=100 if completed else 50)
+                return _jobs[job_id]
+            except Exception as e:
+                print(f"[slam3r_service] Direct inference failed, falling back to ROS2 node: {e}")
+
+        # Fallback: Run SLAM3R batch via ROS2 node subprocess
+        if not NODE_SCRIPT.exists():
+            update_job(job_id, status="failed",
+                       error=f"SLAM3R node not found: {NODE_SCRIPT}",
+                       progress=0)
+            return _jobs[job_id]
+
+        update_job(job_id, status="running", progress=30)
+        result = subprocess.run(
+            [sys.executable, str(NODE_SCRIPT),
+             "--video", str(file_path),
+             "--output", output_dir,
+             "--frame-skip", "10"],
+            cwd=str(_PROJECT_ROOT),
+            capture_output=True, text=True, timeout=7200,
+        )
+
+        try:
+            output = json.loads(result.stdout.strip().split("\n")[-1])
+        except (json.JSONDecodeError, IndexError):
+            output = {"status": "error", "error": result.stderr[-500:] or result.stdout[-500:]}
+
+        completed = output.get("status") == "completed"
+        update_job(job_id,
+                   status=output.get("status", "error"),
+                   pointcloud_file=output.get("pointcloud_file", ""),
+                   poses_file=output.get("poses_file", ""),
+                   error=output.get("error", ""),
+                   progress=100 if completed else 50)
+
+        if output.get("message") and "stub" in output["message"]:
+            update_job(job_id, status="completed", progress=100)
+
+    except subprocess.TimeoutExpired:
+        update_job(job_id, status="failed", error="SLAM3R timed out (2h)", progress=0)
+    except Exception as e:
+        update_job(job_id, status="failed", error=str(e), progress=0)
+
+    return _jobs[job_id]
+
+
 def _extract_frames_from_video(video_path: Path, output_dir: str,
                                 frame_skip: int = 10,
                                 target_size: tuple = (224, 224)) -> str:
-    """Extract frames from video, returns path to frames directory."""
+    """Extract frames from video, returns path to rgb frames directory."""
     import cv2
     import numpy as np
 
@@ -199,7 +278,7 @@ def _extract_frames_from_video(video_path: Path, output_dir: str,
         f.writelines(entries)
 
     print(f"[slam3r_service] Extracted {saved} frames from {video_path.name}")
-    return str(frames_dir)
+    return str(rgb_dir)  # return rgb/ subdir for Seq_Data compatibility
 
 
 def _direct_reconstruct_from_video(video_path: Path, output_dir: str) -> dict:
@@ -241,10 +320,60 @@ def _direct_reconstruct_from_video(video_path: Path, output_dir: str) -> dict:
     scene_recon_pipeline_offline(
         _shared_i2p_model, _shared_l2w_model, dataset, args, str(output_path))
 
-    # Find output PLY
+    # Find output PLY and convert to ASCII for frontend compatibility
     ply_files = list(output_path.glob("*_recon.ply"))
     ply_path = str(ply_files[0]) if ply_files else ""
     frames_processed = len(dataset[0]) if hasattr(dataset, '__getitem__') else 0
+
+    if ply_path:
+        try:
+            ascii_path = str(output_path / "pointcloud.ply")
+            import struct
+            import numpy as np
+            with open(ply_path, 'rb') as f:
+                data = f.read()
+            header_end = data.find(b'end_header\n') + len(b'end_header\n')
+            header = data[:header_end].decode('ascii')
+            body = data[header_end:]
+            # Parse vertex count
+            vc = 0
+            has_color = False
+            for line in header.split('\n'):
+                if line.startswith('element vertex'):
+                    vc = int(line.split()[2])
+                if 'red' in line:
+                    has_color = True
+            # Generate ASCII PLY (sample max 200k points for web)
+            n_pts = min(vc, 200000)
+            step = max(1, vc // n_pts)
+            with open(ascii_path, 'w') as f:
+                f.write(f'ply\nformat ascii 1.0\nelement vertex {n_pts}\n')
+                f.write('property float x\nproperty float y\nproperty float z\n')
+                if has_color:
+                    f.write('property uchar red\nproperty uchar green\nproperty uchar blue\n')
+                f.write('end_header\n')
+                offset = 0
+                written = 0
+                for i in range(vc):
+                    x, y, z = struct.unpack('fff', body[offset:offset+12])
+                    offset += 12
+                    if i % step == 0 and written < n_pts:
+                        if has_color:
+                            r = body[offset]
+                            g = body[offset+1]
+                            b = body[offset+2]
+                            offset += 3
+                            f.write(f'{x:.4f} {y:.4f} {z:.4f} {r} {g} {b}\n')
+                        else:
+                            f.write(f'{x:.4f} {y:.4f} {z:.4f} 128 128 128\n')
+                        written += 1
+                    elif has_color:
+                        offset += 3
+            import os
+            print(f"[slam3r_service] Converted PLY: {n_pts} points, {os.path.getsize(ascii_path)/1024:.0f} KB")
+            ply_path = ascii_path
+        except Exception as e:
+            print(f"[slam3r_service] PLY conversion failed (using binary): {e}")
 
     print(f"[slam3r_service] Reconstruction complete: {ply_path}")
     return {"status": "completed" if ply_path else "error",

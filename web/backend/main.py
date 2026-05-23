@@ -27,6 +27,21 @@ async def lifespan(app: FastAPI):
         print(f"[startup] Kimi API key configured (model: {settings.kimi_model})")
     else:
         print("[startup] WARNING: KIMI_API_KEY not set. Analysis endpoints will fail.")
+
+    # Preload SLAM3R models to GPU at startup
+    try:
+        from backend.services.slam3r_service import _load_models
+        import os
+        os.environ.setdefault("HF_HOME", settings.slam3r_hf_cache or
+                              "/autodl-fs/data/projects/see_world/.hf_cache")
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        if _load_models():
+            print("[startup] SLAM3R models loaded to GPU")
+        else:
+            print("[startup] WARNING: SLAM3R models not loaded (no GPU)")
+    except Exception as e:
+        print(f"[startup] WARNING: SLAM3R model loading failed: {e}")
+
     yield
     # shutdown
     print("[shutdown] See World server stopped")
