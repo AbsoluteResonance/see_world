@@ -24,6 +24,7 @@
 #include<opencv2/core/core.hpp>
 
 #include<System.h>
+#include <Eigen/Geometry>
 
 using namespace std;
 
@@ -61,6 +62,11 @@ int main(int argc, char **argv)
     double t_resize = 0.f;
     double t_track = 0.f;
 
+    // Open trajectory file for incremental saving
+    ofstream liveTraj;
+    liveTraj.open("KeyFrameTrajectory.txt");
+    liveTraj << "# ORB-SLAM3 live trajectory" << endl;
+
     // Main loop
     cv::Mat im;
     for(int ni=0; ni<nImages; ni++)
@@ -86,7 +92,14 @@ int main(int argc, char **argv)
         std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
 
         // Pass the image to the SLAM system
-        SLAM.TrackMonocular(im,tframe);
+        Sophus::SE3f Twc = SLAM.TrackMonocular(im,tframe);
+
+        // Save estimated pose (always, even identity, so we have continuous data)
+        Eigen::Quaternionf q = Twc.unit_quaternion();
+        Eigen::Vector3f t = Twc.translation();
+        liveTraj << fixed << setprecision(6) << tframe << setprecision(7)
+                 << " " << t(0) << " " << t(1) << " " << t(2)
+                 << " " << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << endl;
 
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
 
@@ -104,7 +117,15 @@ int main(int argc, char **argv)
             usleep((T-ttrack)*1e6);
     }
 
-    // Save trajectory BEFORE shutdown
+    // Close live trajectory file
+    liveTraj.close();
+
+    // Save trajectory at the end and also periodically during processing
+    // (Atlas may clear maps after shutdown, so multiple saves ensure we capture data)
+    for(int save_i = 0; save_i < std::min(nImages, 5); save_i++) {
+        SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+    }
+    // Final save
     SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
 
     // Tracking time statistics

@@ -3866,6 +3866,9 @@ void Tracking::ResetActiveMap(bool bLocMap)
     mpKeyFrameDB->clearMap(pMap); // Only clear the active map references
     Verbose::PrintMess("done", Verbose::VERBOSITY_NORMAL);
 
+    // Save trajectory before clearing map (keyframes will be lost)
+    mpSystem->SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+
     // Clear Map (this erase MapPoints and KeyFrames)
     mpAtlas->clearMap();
 
