@@ -38,6 +38,11 @@ SLAM/ORB_SLAM3/lib/
 SLAM/ORB_SLAM3/Thirdparty/*/build/
 SLAM/ORB_SLAM3/Thirdparty/*/lib/
 
+# Large files (not tracked)
+SLAM/ORB_SLAM3/Vocabulary/
+SLAM/BoRe-Depth-main.zip
+web/uploads/calibration/
+
 # Uploads and cache
 web/uploads/images/
 web/uploads/videos/

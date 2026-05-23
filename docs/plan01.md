@@ -195,7 +195,7 @@ python-multipart>=0.0.6
 
 **文件存储规范:**
 - 文件名: `{timestamp}_{uuid8}_{sanitized_original_name}`
-- 存储路径: `/root/autodl-tmp/projects/see_world/web/uploads/{images|videos}/`
+- 存储路径: `/root/autodl-fs/projects/see_world/web/uploads/{images|videos}/`
 - 支持格式: jpg, jpeg, png, webp, mp4, mov, avi
 - 大小限制: 图片 < 20MB, 视频 < 200MB
 
@@ -338,7 +338,7 @@ settings = Settings()
 
 1. **获取源码:**
    ```bash
-   cd /root/autodl-tmp/projects/see_world/SLAM/ORB_SLAM2
+   cd /root/autodl-fs/projects/see_world/SLAM/ORB_SLAM2
    git clone https://github.com/raulmur/ORB_SLAM2.git src
    ```
 
@@ -410,14 +410,14 @@ settings = Settings()
 
 1. **获取源码:**
    ```bash
-   cd /root/autodl-tmp/projects/see_world/SLAM/VINS_Mono
+   cd /root/autodl-fs/projects/see_world/SLAM/VINS_Mono
    git clone https://github.com/HKUST-Aerial-Robotics/VINS-Mono.git src
    ```
 
 2. **编译 (ROS workspace):**
    ```bash
    mkdir -p ~/catkin_ws/src
-   ln -s /root/autodl-tmp/projects/see_world/SLAM/VINS_Mono/src ~/catkin_ws/src/
+   ln -s /root/autodl-fs/projects/see_world/SLAM/VINS_Mono/src ~/catkin_ws/src/
    cd ~/catkin_ws
    catkin_make
    source devel/setup.bash

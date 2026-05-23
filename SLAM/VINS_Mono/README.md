@@ -21,7 +21,7 @@
 ```bash
 docker pull osrf/ros:noetic-desktop-full
 docker run -it --rm \
-  -v /root/autodl-tmp/projects/see_world/SLAM/VINS_Mono:/workspace \
+  -v /root/autodl-fs/projects/see_world/SLAM/VINS_Mono:/workspace \
   osrf/ros:noetic-desktop-full \
   bash
 
@@ -40,7 +40,7 @@ source devel/setup.bash
 ## 测试 (EuRoC 数据集)
 
 ```bash
-python3 /root/autodl-tmp/projects/see_world/SLAM/ORB_SLAM3/scripts/download_dataset.py \
+python3 /root/autodl-fs/projects/see_world/SLAM/ORB_SLAM3/scripts/download_dataset.py \
   --dataset euroc --sequence MH_05
 
 roslaunch vins_estimator euroc.launch

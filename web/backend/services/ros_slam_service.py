@@ -17,7 +17,7 @@ from pathlib import Path
 
 from backend.config import settings
 
-ORB_SLAM3_DIR = Path("/root/autodl-tmp/projects/see_world/SLAM/ORB_SLAM3")
+ORB_SLAM3_DIR = Path("/root/autodl-fs/projects/see_world/SLAM/ORB_SLAM3")
 VOCAB_PATH = ORB_SLAM3_DIR / "Vocabulary" / "ORBvoc.txt"
 EXE_PATH = ORB_SLAM3_DIR / "Examples" / "Monocular" / "mono_tum"
 

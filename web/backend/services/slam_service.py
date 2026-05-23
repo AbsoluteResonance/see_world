@@ -20,7 +20,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 _jobs: dict[str, dict] = {}
 
 RECONSTRUCT_DIR = Path(__file__).resolve().parent.parent.parent / "reconstructions"
-ORB_SLAM3_DIR = Path("/root/autodl-tmp/projects/see_world/SLAM/ORB_SLAM3")
+ORB_SLAM3_DIR = Path("/root/autodl-fs/projects/see_world/SLAM/ORB_SLAM3")
 ROS2_WS_DIR = Path("/root/ros2_ws")
 
 
