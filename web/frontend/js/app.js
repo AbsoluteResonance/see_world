@@ -146,7 +146,10 @@ async function startReconstruction() {
     const job = body.data || {};
 
     if (!job.job_id) {
-      throw new Error(job.error || '启动失败');
+      const errMsg = job.error || body.message || '';
+      throw new Error(errMsg.includes('File not found')
+        ? '文件不存在，请刷新页面后重试'
+        : errMsg || '启动失败');
     }
 
     // Poll for completion
