@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>See World — 场景理解</title>
   <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="manifest" href="/static/manifest.json" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
 </head>
 <body>
   <header class="header">
@@ -59,14 +62,57 @@
       </div>
       <div class="analysis-error" id="analysisError" hidden></div>
     </section>
+
+    <!-- 3D Viewer -->
+    <section class="viewer-section" id="viewerSection">
+      <div class="section-header">
+        <h2>3D 点云查看器</h2>
+        <div class="viewer-toolbar">
+          <button class="btn-refresh" id="loadSampleBtn">加载示例</button>
+        </div>
+      </div>
+      <div id="viewer3d-container" class="viewer3d-container">
+        <p class="viewer3d-placeholder" id="viewer3d-status">点击"加载示例"查看 3D 点云</p>
+      </div>
+      <div class="viewer-controls">
+        <span class="viewer-hint">鼠标拖动旋转 · 滚轮缩放 · 右键平移</span>
+      </div>
+    </section>
+
+    <!-- Reconstruction Panel -->
+    <section class="recon-section" id="reconSection">
+      <div class="section-header">
+        <h2>3D 重建</h2>
+        <button class="btn-refresh" id="refreshReconBtn">刷新状态</button>
+      </div>
+      <div class="recon-input">
+        <input type="text" id="reconImagesDir" placeholder="图片目录路径，如: /path/to/images" class="recon-input__field" />
+        <button class="btn-analyze" id="startReconBtn">开始重建</button>
+      </div>
+      <div class="recon-status" id="reconStatus" hidden>
+        <div class="recon-status__item">
+          <span>状态:</span>
+          <span id="reconStatusText">—</span>
+        </div>
+        <div class="recon-status__item">
+          <span>进度:</span>
+          <span id="reconProgress">0%</span>
+        </div>
+        <div class="recon-status__item recon-status__error" id="reconError" hidden></div>
+      </div>
+      <div class="recon-jobs" id="reconJobs"></div>
+    </section>
   </main>
 
   <footer class="footer">
     <p>See World v0.1 — Built with FastAPI + Vanilla JS</p>
   </footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="/static/js/upload.js"></script>
   <script src="/static/js/gallery.js"></script>
+  <script src="/static/js/viewer3d.js"></script>
   <script src="/static/js/app.js"></script>
 </body>
 </html>

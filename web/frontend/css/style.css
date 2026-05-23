@@ -292,6 +292,109 @@ section {
   font-size: 0.8rem;
 }
 
+/* 3D Viewer */
+.viewer-section {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+.viewer-toolbar {
+  display: flex;
+  gap: 0.5rem;
+}
+.viewer3d-container {
+  width: 100%;
+  height: 400px;
+  background: #0a0f1e;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.viewer3d-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.viewer-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.viewer-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Reconstruction Panel */
+.recon-section {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+.recon-input {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.recon-input__field {
+  flex: 1;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  font-family: monospace;
+}
+.recon-status {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.recon-status__item {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.2rem 0;
+}
+.recon-status__error {
+  color: var(--error);
+}
+.recon-jobs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.recon-job {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.85rem;
+}
+.recon-job__header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+.recon-job__id {
+  font-family: monospace;
+  color: var(--primary);
+}
+.recon-job__status {
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+.recon-job__status.completed { background: rgba(34,197,94,0.2); color: var(--success); }
+.recon-job__status.running { background: rgba(79,70,229,0.2); color: var(--primary); }
+.recon-job__status.failed { background: rgba(239,68,68,0.2); color: var(--error); }
+.recon-job__status.pending { background: rgba(148,163,184,0.2); color: var(--text-muted); }
+
 /* Responsive */
 @media (max-width: 600px) {
   .gallery {
@@ -299,5 +402,8 @@ section {
   }
   .drop-zone {
     padding: 1.5rem 0.5rem;
+  }
+  .viewer3d-container {
+    height: 250px;
   }
 }

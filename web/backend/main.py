@@ -1,10 +1,12 @@
 import sys
 from pathlib import Path
 
-# Ensure tools/ is importable
-_tools_dir = Path(__file__).resolve().parent.parent.parent / "tools"  # see_world/tools/
-if str(_tools_dir) not in sys.path:
-    sys.path.insert(0, str(_tools_dir))
+# Ensure see_world/ and tools/ are importable
+_see_world = Path(__file__).resolve().parent.parent.parent  # see_world/
+_tools_dir = _see_world / "tools"
+for p in [str(_tools_dir), str(_see_world)]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 from contextlib import asynccontextmanager
 
@@ -13,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import settings
-from backend.routes import upload, model
+from backend.routes import upload, model, slam_routes
 
 
 @asynccontextmanager
@@ -51,6 +53,7 @@ app.mount("/static", StaticFiles(directory=str(frontend_path), html=True), name=
 # Routes
 app.include_router(upload.router)
 app.include_router(model.router)
+app.include_router(slam_routes.router)
 
 
 @app.get("/api/health")

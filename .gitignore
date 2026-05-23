@@ -8,3 +8,22 @@ uploads/.cache/*
 !uploads/.cache/.gitkeep
 .env
 *.egg-info/
+
+# External build dependencies
+Pangolin/
+
+# SLAM build artifacts
+ORB_SLAM3/Thirdparty/DBoW2/build/
+ORB_SLAM3/Thirdparty/g2o/build/
+ORB_SLAM3/Thirdparty/Sophus/build/
+ORB_SLAM3/build/
+ORB_SLAM3/lib/
+ORB_SLAM3/Examples/**/*.txt
+ORB_SLAM3/Examples_old/
+ORB_SLAM3/Vocabulary/ORBvoc.txt
+
+# Datasets (large)
+datasets/
+
+# SLAM output
+reconstructions/

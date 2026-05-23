@@ -20,7 +20,7 @@ _client = None
 def _get_client():
     global _client
     if _client is None:
-        from tools.kimi.kimi_client import KimiClient
+        from kimi.kimi_client import KimiClient
         _client = KimiClient(api_key=settings.kimi_api_key, model=settings.kimi_model)
     return _client
 

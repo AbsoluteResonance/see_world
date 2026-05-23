@@ -19,7 +19,6 @@ function openAnalysis(fileId, url, type) {
     preview.innerHTML = `<img src="${url}" alt="preview" style="max-width:100%;max-height:300px" />`;
   }
 
-  // Scroll to analysis section
   section.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -75,8 +74,88 @@ async function runAnalysis() {
   }
 }
 
+// --- Reconstruction ---
+async function startReconstruction() {
+  const dir = document.getElementById('reconImagesDir').value.trim();
+  if (!dir) return;
+
+  const statusDiv = document.getElementById('reconStatus');
+  const statusText = document.getElementById('reconStatusText');
+  const progressText = document.getElementById('reconProgress');
+  const errorDiv = document.getElementById('reconError');
+  const btn = document.getElementById('startReconBtn');
+
+  statusDiv.hidden = false;
+  errorDiv.hidden = true;
+  btn.disabled = true;
+  btn.textContent = '启动中…';
+  statusText.textContent = '请求中';
+
+  try {
+    const resp = await fetch('/api/reconstruct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ images_dir: dir }),
+    });
+    const body = await resp.json();
+    const data = body.data || {};
+
+    statusText.textContent = data.status || 'unknown';
+    progressText.textContent = (data.progress || 0) + '%';
+
+    if (data.status === 'completed') {
+      if (data.trajectory_file) {
+        document.getElementById('loadTrajectoryBtn').hidden = false;
+      }
+    }
+    if (data.error) {
+      errorDiv.textContent = data.error;
+      errorDiv.hidden = false;
+    }
+  } catch (err) {
+    errorDiv.textContent = err.message || '请求失败';
+    errorDiv.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '开始重建';
+  }
+}
+
+async function refreshReconstructions() {
+  const container = document.getElementById('reconJobs');
+  try {
+    const resp = await fetch('/api/reconstruct');
+    const body = await resp.json();
+    const jobs = body.data || [];
+
+    if (jobs.length === 0) {
+      container.innerHTML = '<div class="gallery__empty">暂无重建任务</div>';
+      return;
+    }
+
+    container.innerHTML = jobs.map(j => `
+      <div class="recon-job">
+        <div class="recon-job__header">
+          <span class="recon-job__id">${j.job_id}</span>
+          <span class="recon-job__status ${j.status}">${j.status}</span>
+        </div>
+        <div>输入: ${j.images_dir || '—'}</div>
+        <div>进度: ${j.progress || 0}%</div>
+        ${j.error ? `<div style="color:var(--error)">错误: ${j.error}</div>` : ''}
+        ${j.trajectory_file ? `<div><a href="/api/reconstruct/${j.job_id}/trajectory" target="_blank">下载轨迹</a></div>` : ''}
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = '<div class="gallery__empty">加载失败</div>';
+  }
+}
+
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+  // Register Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/service-worker.js');
+  }
   initUpload();
   refreshGallery();
 
@@ -104,4 +183,24 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.ctrlKey && e.key === 'Enter') runAnalysis();
     });
   }
+
+  // 3D Viewer
+  const loadSampleBtn = document.getElementById('loadSampleBtn');
+  if (loadSampleBtn) {
+    loadSampleBtn.addEventListener('click', () => {
+      initViewer3D();
+      loadSamplePointCloud();
+    });
+  }
+
+  // Reconstruction
+  const startReconBtn = document.getElementById('startReconBtn');
+  if (startReconBtn) startReconBtn.addEventListener('click', startReconstruction);
+
+  const refreshReconBtn = document.getElementById('refreshReconBtn');
+  if (refreshReconBtn) refreshReconBtn.addEventListener('click', refreshReconstructions);
+
+  // Init 3D viewer on first interaction
+  initViewer3D();
+  refreshReconstructions();
 });

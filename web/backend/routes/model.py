@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from backend.config import settings
-from backend.services import kimi_service, slam_service
+from backend.services import kimi_service
 from backend.utils import is_allowed_ext
 
 router = APIRouter()
@@ -32,11 +32,3 @@ async def analyze_file(file_id: str, body: dict):
 
     result = await kimi_service.analyze(str(found_path), prompt, file_id=file_id)
     return {"code": 0, "message": "success", "data": result}
-
-
-@router.post("/api/reconstruct")
-async def reconstruct(body: dict):
-    images_dir = body.get("images_dir", "")
-    output_dir = body.get("output_dir", "")
-    result = slam_service.reconstruct(images_dir, output_dir)
-    return {"code": 0, "message": result.get("message", ""), "data": result}
