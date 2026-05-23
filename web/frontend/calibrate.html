@@ -63,6 +63,26 @@
         将打印的棋盘格放在面前，用手机从不同角度拍摄（至少 10 张），
         确保棋盘格在每个角度都清晰可见。
       </p>
+
+      <!-- Parameters -->
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:0.75rem;background:var(--surface);border-radius:8px">
+        <div style="flex:1;min-width:120px">
+          <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:2px">内角点列数 (width)</label>
+          <input type="number" id="patternWidth" value="9" min="5" max="12" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-size:0.9rem" />
+        </div>
+        <div style="flex:1;min-width:120px">
+          <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:2px">内角点行数 (height)</label>
+          <input type="number" id="patternHeight" value="6" min="4" max="10" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-size:0.9rem" />
+        </div>
+        <div style="flex:1;min-width:120px">
+          <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:2px">格子大小 (m)</label>
+          <input type="number" id="squareSize" value="0.025" min="0.005" max="0.1" step="0.001" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-size:0.9rem" />
+        </div>
+        <div style="display:flex;align-items:end;font-size:0.75rem;color:var(--text-muted)">
+          实际测量棋盘格每个格子的边长（米）
+        </div>
+      </div>
+
       <div class="drop-zone" id="dropZone">
         <div class="drop-zone__icon">+</div>
         <p class="drop-zone__text">拖拽或点击上传棋盘格照片</p>
@@ -111,7 +131,7 @@
         <li>点击"运行标定"</li>
         <li>下载 YAML 配置文件，用于后续 3D 重建</li>
       </ol>
-      <p style="margin-top:0.5rem">默认棋盘格参数：内角点 9×6，格大小 0.025m（2.5cm）</p>
+      <p style="margin-top:0.5rem">你可以在上传区上方自定义棋盘格的参数（内角点数、格子大小）</p>
     </section>
   </main>
 
@@ -146,15 +166,24 @@
     if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
   });
 
+  function getParams() {
+    return {
+      pattern_width: parseInt(document.getElementById('patternWidth').value) || 9,
+      pattern_height: parseInt(document.getElementById('patternHeight').value) || 6,
+      square_size: parseFloat(document.getElementById('squareSize').value) || 0.025,
+    };
+  }
+
   async function uploadFiles(files) {
     progressBar.hidden = false;
+    const params = getParams();
     let completed = 0;
     for (const file of files) {
       const form = new FormData();
       form.append('file', file);
-      form.append('pattern_width', '9');
-      form.append('pattern_height', '6');
-      form.append('square_size', '0.025');
+      form.append('pattern_width', String(params.pattern_width));
+      form.append('pattern_height', String(params.pattern_height));
+      form.append('square_size', String(params.square_size));
 
       try {
         const resp = await fetch('/api/calibrate/upload', { method: 'POST', body: form });
