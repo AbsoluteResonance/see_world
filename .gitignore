@@ -27,3 +27,19 @@ datasets/
 
 # SLAM output
 reconstructions/
+
+# Large SLAM binary files
+SLAM/ORB_SLAM3/Vocabulary/*.tar.gz
+SLAM/ORB_SLAM3/Vocabulary/ORBvoc.txt
+
+# Build artifacts
+SLAM/ORB_SLAM3/build/
+SLAM/ORB_SLAM3/lib/
+SLAM/ORB_SLAM3/Thirdparty/*/build/
+SLAM/ORB_SLAM3/Thirdparty/*/lib/
+
+# Uploads and cache
+web/uploads/images/
+web/uploads/videos/
+web/uploads/.cache/
+web/reconstructions/
