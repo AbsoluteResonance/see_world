@@ -191,3 +191,67 @@ async def get_thumbnail(file_id: str):
                 raise HTTPException(status_code=400, detail={"code": 40001, "message": f"Thumbnail failed: {e}"})
 
     raise HTTPException(status_code=404, detail={"code": 404, "message": "File not found"})
+
+
+def _find_file(file_id: str) -> Path | None:
+    """Find an uploaded file by file_id. Returns path or None."""
+    for subdir in [IMAGE_DIR, VIDEO_DIR]:
+        if not subdir.exists():
+            continue
+        for f in subdir.iterdir():
+            if f.name.startswith('.') or not f.is_file():
+                continue
+            if file_id in f.name:
+                return f
+    return None
+
+
+@router.put("/api/files/{file_id}/rename")
+async def rename_file(file_id: str, body: dict):
+    """Rename an uploaded file."""
+    fpath = _find_file(file_id)
+    if not fpath:
+        raise HTTPException(status_code=404, detail={"code": 404, "message": "File not found"})
+
+    new_name = (body.get("new_name") or "").strip()
+    if not new_name:
+        raise HTTPException(status_code=400, detail={"code": 40001, "message": "new_name is required"})
+
+    # Keep original extension
+    orig_ext = fpath.suffix
+    stem = new_name.rsplit(".", 1)[0] if "." in new_name else new_name
+    new_path = fpath.with_stem(stem)
+    if new_path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".avi"}:
+        new_path = new_path.with_suffix(orig_ext)
+
+    # Avoid collision
+    if new_path.exists() and new_path != fpath:
+        raise HTTPException(status_code=400, detail={"code": 40001, "message": "Target name already exists"})
+
+    fpath.rename(new_path)
+
+    # Remove cached thumbnail
+    cache_dir = Path(settings.upload_dir) / ".cache" / "thumbs"
+    thumb = cache_dir / f"{file_id}.jpg"
+    if thumb.exists():
+        thumb.unlink()
+
+    return {"code": 0, "message": "success", "data": {"filename": new_path.name}}
+
+
+@router.delete("/api/files/{file_id}")
+async def delete_file(file_id: str):
+    """Delete an uploaded file."""
+    fpath = _find_file(file_id)
+    if not fpath:
+        raise HTTPException(status_code=404, detail={"code": 404, "message": "File not found"})
+
+    fpath.unlink()
+
+    # Remove cached thumbnail
+    cache_dir = Path(settings.upload_dir) / ".cache" / "thumbs"
+    thumb = cache_dir / f"{file_id}.jpg"
+    if thumb.exists():
+        thumb.unlink()
+
+    return {"code": 0, "message": "success", "data": {"deleted": file_id}}

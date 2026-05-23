@@ -191,7 +191,7 @@ class SLAMRunner:
             result = subprocess.run(
                 [exe, self.vocab_path, self.settings_path, resolved_input],
                 cwd=Path(exe).parent,
-                capture_output=True, text=True, timeout=3600
+                capture_output=True, text=True, timeout=3600,
             )
             traj_file = Path(output_dir) / "KeyFrameTrajectory.txt"
             # Copy if exists (written to CWD = exe parent dir)
@@ -200,10 +200,11 @@ class SLAMRunner:
                 import shutil
                 shutil.copy(str(src), str(traj_file))
 
-            completed = (result.returncode == 0) or traj_file.exists()
+            traj_ok = traj_file.exists() and traj_file.stat().st_size > 0
+            completed = (result.returncode == 0) or traj_ok
             return {
                 "status": "completed" if completed else "error",
-                "trajectory_file": str(traj_file) if traj_file.exists() else "",
+                "trajectory_file": str(traj_file) if traj_ok else "",
                 "pointcloud_file": "",
                 "stdout": result.stdout[-500:],
                 "stderr": result.stderr[-500:],

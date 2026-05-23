@@ -40,9 +40,11 @@ def _find_uploaded_file(file_id: str) -> tuple[Path, str] | None:
     return None
 
 
-def _extract_frames(video_path: Path, output_dir: Path, frame_skip: int = 10) -> int:
+def _extract_frames(video_path: Path, output_dir: Path, frame_skip: int = 10,
+                    target_size: tuple | None = (640, 480)) -> int:
     """Extract frames from video using OpenCV into TUM-format directory.
 
+    Resizes large frames to 640x480 for ORB-SLAM3 compatibility.
     Creates:
         output_dir/frames/rgb/          — extracted frame images
         output_dir/frames/rgb.txt        — TUM-format timestamp index
@@ -69,6 +71,9 @@ def _extract_frames(video_path: Path, output_dir: Path, frame_skip: int = 10) ->
         if not ret:
             break
         if count % frame_skip == 0:
+            # Resize large frames for SLAM compatibility
+            if target_size and (frame.shape[1] > target_size[0] or frame.shape[0] > target_size[1]):
+                frame = cv2.resize(frame, target_size, interpolation=cv2.INTER_AREA)
             timestamp = count / fps
             fname = f"frame_{saved:06d}.png"
             cv2.imwrite(str(rgb_dir / fname), frame)
@@ -79,13 +84,13 @@ def _extract_frames(video_path: Path, output_dir: Path, frame_skip: int = 10) ->
 
     cap.release()
 
-    # Write rgb.txt in TUM format
+    # Write rgb.txt in TUM format (mono_tum expects exactly 3 header lines)
     with open(base_dir / "rgb.txt", "w") as f:
         f.write("# color images\n")
-        f.write(f"# extracted from {video_path.name} (every {frame_skip}th frame)\n")
-        f.write(f"# fps={fps:.2f}\n")
+        f.write(f"# extracted from {video_path.name}\n")
         f.write("# timestamp filename\n")
-        f.writelines(entries)
+        for entry in entries:
+            f.write(entry)
 
     return saved
 
@@ -159,9 +164,10 @@ def reconstruct_from_file(file_id: str) -> dict:
             rgb_dir = frames_dir / "rgb"
             rgb_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy(str(file_path), str(rgb_dir / file_path.name))
-            # Write minimal rgb.txt
+            # Write minimal rgb.txt (exactly 3 header lines)
             with open(frames_dir / "rgb.txt", "w") as f:
                 f.write("# color images\n")
+                f.write(f"# single image\n")
                 f.write(f"0.0 rgb/{file_path.name}\n")
             images_dir = str(frames_dir)
 
@@ -180,12 +186,25 @@ def reconstruct_from_file(file_id: str) -> dict:
         update_job(job_id, progress=30)
         result = runner.run(images_dir, str(Path(output_dir) / "slam_output"))
 
+        completed = result["status"] == "completed"
+        traj_file = result.get("trajectory_file", "")
+
+        # Generate colored point cloud from trajectory
+        ply_file = ""
+        if completed and traj_file and Path(traj_file).stat().st_size > 0:
+            try:
+                from SLAM.python_interface.pointcloud import build_pointcloud
+                ply_path = str(Path(output_dir) / "pointcloud.ply")
+                ply_file = build_pointcloud(images_dir, traj_file, ply_path)
+            except Exception as e:
+                print(f"[slam] Point cloud generation failed: {e}")
+
         update_job(job_id,
                    status=result["status"],
-                   trajectory_file=result.get("trajectory_file", ""),
-                   pointcloud_file=result.get("pointcloud_file", ""),
+                   trajectory_file=traj_file,
+                   pointcloud_file=ply_file,
                    error=result.get("error", ""),
-                   progress=100 if result["status"] == "completed" else 50)
+                   progress=100 if completed else 50)
 
     except Exception as e:
         update_job(job_id, status="failed", error=str(e), progress=0)

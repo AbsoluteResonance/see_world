@@ -55,8 +55,10 @@
         <textarea id="analysisPrompt" rows="2" placeholder="输入分析提示词…">请详细描述这张图片的内容，包括场景、物体、人物、颜色、位置关系等</textarea>
         <button class="btn-analyze" id="analyzeBtn">分析</button>
       </div>
-      <div style="margin-top:0.5rem; display:flex; gap:0.5rem;">
-        <button class="btn-analyze" id="start3dReconBtn" hidden style="background:var(--success);">🎯 3D 重建</button>
+      <div style="margin-top:0.5rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <button class="btn-analyze" id="start3dReconBtn" hidden style="background:var(--success);">3D 重建</button>
+        <button class="btn-refresh" id="renameFileBtn" style="display:none">重命名</button>
+        <button class="btn-refresh" id="deleteFileBtn" style="display:none; color:var(--error); border-color:var(--error);">删除</button>
       </div>
       <div class="analysis-result" id="analysisResult" hidden>
         <h3>分析结果</h3>

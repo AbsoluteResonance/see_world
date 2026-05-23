@@ -71,15 +71,17 @@ function loadPointCloud(url) {
     pointCloud.material.dispose();
   }
 
-  // Fetch and parse PLY
+  // Fetch and parse PLY (ASCII with optional vertex colors)
   fetch(url)
     .then(res => res.text())
     .then(text => {
       const lines = text.split('\n');
       let vertexCount = 0;
+      let hasColors = false;
       let headerEnd = 0;
       let isHeader = true;
-      const points = [];
+      const positions = [];
+      const colors = [];
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -87,48 +89,63 @@ function loadPointCloud(url) {
           if (line.startsWith('element vertex')) {
             vertexCount = parseInt(line.split(' ')[2]);
           }
+          if (line.startsWith('property uchar red') ||
+              line.startsWith('property uchar r')) {
+            hasColors = true;
+          }
           if (line === 'end_header') {
             headerEnd = i + 1;
             isHeader = false;
           }
         } else {
-          if (points.length >= vertexCount) break;
+          if (positions.length / 3 >= vertexCount) break;
           const parts = line.split(/\s+/);
           if (parts.length >= 3) {
-            points.push(
+            positions.push(
               parseFloat(parts[0]),
               parseFloat(parts[1]),
               parseFloat(parts[2])
             );
+            if (hasColors && parts.length >= 6) {
+              colors.push(
+                parseInt(parts[3]) / 255,
+                parseInt(parts[4]) / 255,
+                parseInt(parts[5]) / 255
+              );
+            }
           }
         }
       }
 
-      if (points.length === 0) {
-        // Try loading as binary PLY or use sample data
+      if (positions.length === 0) {
         loadSamplePointCloud();
         return;
       }
 
       const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
 
       const material = new THREE.PointsMaterial({
-        color: 0x818cf8,
-        size: 0.02,
+        size: 0.03,
         sizeAttenuation: true,
+        vertexColors: hasColors,
       });
+
+      if (hasColors) {
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      } else {
+        material.color = new THREE.Color(0x818cf8);
+      }
 
       pointCloud = new THREE.Points(geometry, material);
       scene.add(pointCloud);
 
       // Auto-fit camera
       const box = new THREE.Box3().setFromObject(pointCloud);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      camera.position.set(center.x, center.y, center.z + maxDim * 1.5);
-      camera.lookAt(center);
+      window._lastBox = box;
+      fitCameraToBox(box);
+      document.getElementById('viewer3d-status').textContent =
+        `点云: ${vertexCount} 个点`;
     })
     .catch(() => loadSamplePointCloud());
 }
