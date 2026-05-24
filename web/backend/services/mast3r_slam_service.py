@@ -149,3 +149,120 @@ def get_session(session_id: str) -> Optional[dict]:
 def destroy_session(session_id: str):
     _sessions.pop(session_id, None)
     stop_inference()
+
+
+# ── Batch offline reconstruction ──
+
+import uuid
+
+_BATCH_SCRIPT = (_PROJECT_ROOT / "ros2_ws" / "src" / "slam3r_ros" /
+                  "slam3r_ros" / "mast3r_batch_standalone.py")
+_RECONSTRUCTIONS_DIR = Path(__file__).resolve().parent.parent.parent / "reconstructions"
+_batch_jobs: dict[str, dict] = {}
+
+
+def create_batch_job(video_path: str) -> dict:
+    """Create a batch reconstruction job from a video file."""
+    job_id = uuid.uuid4().hex[:12]
+    output_dir = _RECONSTRUCTIONS_DIR / job_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    job = {
+        "job_id": job_id,
+        "status": "pending",
+        "video_path": str(video_path),
+        "output_dir": str(output_dir),
+        "ply_path": "",
+        "num_points": 0,
+        "num_frames": 0,
+        "screenshots": [],
+        "progress": 0,
+        "progress_message": "",
+        "error": "",
+    }
+    _batch_jobs[job_id] = job
+    return job
+
+
+def start_batch_job(job_id: str) -> bool:
+    """Launch the batch reconstruction subprocess."""
+    job = _batch_jobs.get(job_id)
+    if not job:
+        return False
+
+    job["status"] = "extracting"
+
+    config = {
+        "type": "start",
+        "video_path": job["video_path"],
+        "output_dir": job["output_dir"],
+        "max_frames": 200,
+        "frame_skip": 10,
+        "max_points_per_frame": 1000,
+        "conf_threshold": 1.5,
+        "img_size": 512,
+    }
+
+    try:
+        proc = subprocess.Popen(
+            [_SLAM3R_PYTHON, str(_BATCH_SCRIPT)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True, bufsize=1,
+        )
+        proc.stdin.write(json.dumps(config) + "\n")
+        proc.stdin.flush()
+
+        def _monitor():
+            for line in proc.stdout:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    msg = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                t = msg.get("type", "")
+                if t == "progress":
+                    job["progress"] = msg.get("current", 0)
+                    total = msg.get("total", 1)
+                    if total > 0:
+                        job["progress"] = int(msg.get("current", 0) / total * 100)
+                    job["progress_message"] = msg.get("message", "")
+                elif t == "result":
+                    job["ply_path"] = msg.get("ply_path", "")
+                    job["num_points"] = msg.get("num_points", 0)
+                    job["num_frames"] = msg.get("num_frames", 0)
+                    job["screenshots"] = msg.get("screenshots", [])
+                elif t == "error":
+                    job["status"] = "failed"
+                    job["error"] = msg.get("message", "")
+                elif t == "done":
+                    if job["status"] != "failed":
+                        job["status"] = "completed"
+            # Process ended
+            if job["status"] not in ("completed", "failed"):
+                job["status"] = "failed"
+                job["error"] = job.get("error") or "Process exited unexpectedly"
+
+        threading.Thread(target=_monitor, daemon=True).start()
+
+        def _read_stderr():
+            for line in proc.stderr:
+                line = line.strip()
+                if line:
+                    print(f"[batch:{job_id}] {line}")
+
+        threading.Thread(target=_read_stderr, daemon=True).start()
+
+        job["proc"] = proc
+        return True
+    except Exception as e:
+        job["status"] = "failed"
+        job["error"] = str(e)
+        return False
+
+
+def get_batch_job(job_id: str) -> dict | None:
+    return _batch_jobs.get(job_id)

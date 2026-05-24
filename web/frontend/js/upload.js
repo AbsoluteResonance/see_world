@@ -1,4 +1,4 @@
-/* Upload Module */
+/* Upload Module — video only + auto offline reconstruction */
 
 function initUpload() {
   const dropZone = document.getElementById('dropZone');
@@ -9,22 +9,19 @@ function initUpload() {
 
   if (!dropZone) return;
 
-  // Click to select — but prevent double-firing with label
   dropZone.addEventListener('click', (e) => {
-    if (e.target.closest('.drop-zone__btn')) return; // label handles it
+    if (e.target.closest('.drop-zone__btn')) return;
     fileInput.value = '';
     fileInput.click();
   });
 
-  // File selected via dialog
   fileInput.addEventListener('change', () => {
     if (fileInput.files.length) {
       uploadFiles(fileInput.files);
-      fileInput.value = ''; // allow re-selecting same file
+      fileInput.value = '';
     }
   });
 
-  // Drag & drop
   ['dragenter', 'dragover'].forEach(evt => {
     dropZone.addEventListener(evt, (e) => {
       e.preventDefault();
@@ -52,19 +49,28 @@ function initUpload() {
     let hasError = false;
 
     function uploadOne(file) {
-      const isVideo = file.type.startsWith('video/');
-      const endpoint = isVideo ? '/api/upload/video' : '/api/upload/image';
+      // Only accept videos
+      if (!file.type.startsWith('video/')) {
+        completed++;
+        console.warn('Skipped non-video file:', file.name);
+        const pct = Math.round((completed / total) * 100);
+        progressFill.style.width = pct + '%';
+        progressText.textContent = pct + '%';
+        if (completed === total) finishUpload(true);
+        return;
+      }
 
       const form = new FormData();
       form.append('file', file);
+      const autoRecon = document.getElementById('autoReconstructCheck');
+      form.append('auto_reconstruct', autoRecon && autoRecon.checked ? 'true' : 'false');
 
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', endpoint, true);
-      xhr.timeout = 300000; // 5min timeout for large files
+      xhr.open('POST', '/api/upload/video', true);
+      xhr.timeout = 300000;
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
-          const filePct = Math.round((e.loaded / e.total) * 100);
           const overallPct = Math.round(((completed + e.loaded / e.total) / total) * 100);
           progressFill.style.width = Math.min(overallPct, 100) + '%';
           progressText.textContent = Math.min(overallPct, 100) + '%';
@@ -75,27 +81,29 @@ function initUpload() {
         completed++;
         if (xhr.status >= 400) {
           hasError = true;
-          console.error('Upload failed:', file.name, xhr.status, xhr.responseText);
+          console.error('Upload failed:', file.name, xhr.status);
+        } else {
+          // Check for auto reconstruction
+          try {
+            const resp = JSON.parse(xhr.responseText);
+            const jobId = resp.data?.reconstruction_job_id;
+            if (jobId && window.startReconPolling) {
+              window.startReconPolling(jobId);
+            }
+          } catch(e) { /* ignore parse errors */ }
         }
-        const overallPct = Math.round((completed / total) * 100);
-        progressFill.style.width = overallPct + '%';
-        progressText.textContent = overallPct + '%';
-        if (completed === total) {
-          finishUpload(hasError);
-        }
+        const pct = Math.round((completed / total) * 100);
+        progressFill.style.width = pct + '%';
+        progressText.textContent = pct + '%';
+        if (completed === total) finishUpload(hasError);
       };
 
       xhr.onerror = () => {
-        completed++;
-        hasError = true;
-        console.error('Upload network error:', file.name);
+        completed++; hasError = true;
         if (completed === total) finishUpload(true);
       };
-
       xhr.ontimeout = () => {
-        completed++;
-        hasError = true;
-        console.error('Upload timeout:', file.name);
+        completed++; hasError = true;
         if (completed === total) finishUpload(true);
       };
 

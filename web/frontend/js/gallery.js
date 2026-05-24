@@ -1,4 +1,4 @@
-/* Gallery Module */
+/* Gallery Module — video only + reconstruction trigger */
 
 let currentFiles = [];
 
@@ -17,26 +17,33 @@ async function refreshGallery() {
     }
 
     gallery.innerHTML = currentFiles.map(f => {
-      const isVideo = f.type === 'video';
       return `
         <div class="gallery__item" data-file-id="${f.file_id}" data-url="${f.url}" data-type="${f.type}">
-          ${isVideo
-            ? `<video src="${f.url}" muted preload="metadata" poster="/api/files/${f.file_id}/thumbnail"></video>`
-            : `<img src="${f.url}" alt="${f.filename}" loading="lazy" />`
-          }
-          <span class="gallery__badge">${isVideo ? 'VIDEO' : 'IMG'}</span>
+          <video src="${f.url}" muted preload="metadata" poster="/api/files/${f.file_id}/thumbnail"></video>
+          <span class="gallery__badge">VIDEO</span>
           <span class="gallery__name">${f.filename}</span>
+          <button class="gallery__recon-btn" data-file-id="${f.file_id}">重建点云</button>
         </div>
       `;
     }).join('');
 
-    // Click handler for gallery items
+    // Click handler — open preview
     document.querySelectorAll('.gallery__item').forEach(el => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.gallery__recon-btn')) return;
         const fid = el.dataset.fileId;
         const url = el.dataset.url;
         const type = el.dataset.type;
         if (window.openAnalysis) window.openAnalysis(fid, url, type);
+      });
+    });
+
+    // Click handler — trigger reconstruction
+    document.querySelectorAll('.gallery__recon-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const fid = btn.dataset.fileId;
+        if (window.triggerReconstruction) window.triggerReconstruction(fid);
       });
     });
 

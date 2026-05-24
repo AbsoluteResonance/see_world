@@ -1,5 +1,3 @@
-import os
-import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -13,9 +11,7 @@ from backend.utils import (
 
 router = APIRouter()
 
-IMAGE_DIR = Path(settings.upload_dir) / "images"
 VIDEO_DIR = Path(settings.upload_dir) / "videos"
-MAX_IMAGE_BYTES = settings.max_image_size_mb * 1024 * 1024
 MAX_VIDEO_BYTES = settings.max_video_size_mb * 1024 * 1024
 
 
@@ -29,7 +25,7 @@ async def save_upload(file: UploadFile, dest_dir: Path, max_bytes: int) -> dict:
 
     total = 0
     with open(dest, "wb") as f:
-        while chunk := await file.read(64 * 1024):  # 64KB chunks
+        while chunk := await file.read(64 * 1024):
             total += len(chunk)
             if total > max_bytes:
                 f.close()
@@ -40,27 +36,34 @@ async def save_upload(file: UploadFile, dest_dir: Path, max_bytes: int) -> dict:
                 })
             f.write(chunk)
 
-    subdir = dest_dir.name  # "images" or "videos"
     return {
         "file_id": fname.split("_")[1] if len(fname.split("_")) > 1 else fname,
         "filename": fname,
         "original_name": file.filename,
         "size": total,
-        "url": f"/uploads/{subdir}/{fname}",
-        "type": "image" if dest_dir == IMAGE_DIR else "video",
+        "url": f"/uploads/videos/{fname}",
+        "type": "video",
     }
 
 
-@router.post("/api/upload/image")
-async def upload_image(file: UploadFile = File(...)):
-    result = await save_upload(file, IMAGE_DIR, MAX_IMAGE_BYTES)
-    return {"code": 0, "message": "success", "data": result}
-
-
 @router.post("/api/upload/video")
-async def upload_video(file: UploadFile = File(...)):
+async def upload_video(file: UploadFile = File(...),
+                       auto_reconstruct: bool = Form(False)):
     result = await save_upload(file, VIDEO_DIR, MAX_VIDEO_BYTES)
-    return {"code": 0, "message": "success", "data": result}
+    response = {"code": 0, "message": "success", "data": result}
+
+    if auto_reconstruct:
+        try:
+            from backend.services import mast3r_slam_service
+            job = mast3r_slam_service.create_batch_job(
+                str(VIDEO_DIR / result["filename"]))
+            mast3r_slam_service.start_batch_job(job["job_id"])
+            response["data"]["reconstruction_job_id"] = job["job_id"]
+        except Exception as e:
+            print(f"[upload] auto-reconstruct failed: {e}")
+            response["data"]["reconstruction_error"] = str(e)
+
+    return response
 
 
 @router.post("/api/upload/batch")
@@ -74,13 +77,11 @@ async def upload_batch(files: list[UploadFile] = File(...)):
             results.append({"original_name": f.filename, "status": "skipped", "reason": "unsupported format"})
             continue
         content = await f.read()
-        max_bytes = MAX_VIDEO_BYTES if not is_image_ext(f.filename) else MAX_IMAGE_BYTES
-        if len(content) > max_bytes:
+        if len(content) > MAX_VIDEO_BYTES:
             results.append({"original_name": f.filename, "status": "skipped", "reason": "file too large"})
             continue
         fname = make_storage_filename(f.filename)
-        dest = IMAGE_DIR if is_image_ext(f.filename) else VIDEO_DIR
-        (dest / fname).write_bytes(content)
+        (VIDEO_DIR / fname).write_bytes(content)
         results.append({"original_name": f.filename, "status": "uploaded", "filename": fname})
 
     return {"code": 0, "message": "success", "data": results}
@@ -89,19 +90,18 @@ async def upload_batch(files: list[UploadFile] = File(...)):
 @router.get("/api/files")
 async def list_files(page: int = 1, size: int = 20):
     all_files = []
-    for subdir, ftype in [(IMAGE_DIR, "image"), (VIDEO_DIR, "video")]:
-        if subdir.exists():
-            for f in sorted(subdir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
-                if f.name.startswith('.'):
-                    continue  # skip hidden files (.gitkeep)
-                all_files.append({
-                    "file_id": f.name.split("_")[1] if len(f.name.split("_")) > 1 else f.name,
-                    "filename": f.name,
-                    "size": f.stat().st_size,
-                    "url": f"/uploads/{subdir.name}/{f.name}",
-                    "type": ftype,
-                    "created": f.stat().st_mtime,
-                })
+    if VIDEO_DIR.exists():
+        for f in sorted(VIDEO_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+            if f.name.startswith('.'):
+                continue
+            all_files.append({
+                "file_id": f.name.split("_")[1] if len(f.name.split("_")) > 1 else f.name,
+                "filename": f.name,
+                "size": f.stat().st_size,
+                "url": f"/uploads/videos/{f.name}",
+                "type": "video",
+                "created": f.stat().st_mtime,
+            })
 
     total = len(all_files)
     start = (page - 1) * size
@@ -111,7 +111,7 @@ async def list_files(page: int = 1, size: int = 20):
 
 @router.get("/api/files/{file_id}")
 async def get_file(file_id: str):
-    for subdir in [IMAGE_DIR, VIDEO_DIR]:
+    for subdir in [VIDEO_DIR]:
         if not subdir.exists():
             continue
         for f in subdir.iterdir():
@@ -124,7 +124,7 @@ async def get_file(file_id: str):
                         "filename": f.name,
                         "size": f.stat().st_size,
                         "url": f"/uploads/{subdir.name}/{f.name}",
-                        "type": "image" if subdir == IMAGE_DIR else "video",
+                        "type": "video",
                     },
                 }
     raise HTTPException(status_code=404, detail={"code": 404, "message": "File not found"})
@@ -133,7 +133,7 @@ async def get_file(file_id: str):
 @router.get("/api/files/{file_id}/download")
 async def download_file(file_id: str):
     from fastapi.responses import FileResponse
-    for subdir in [IMAGE_DIR, VIDEO_DIR]:
+    for subdir in [VIDEO_DIR]:
         if not subdir.exists():
             continue
         for f in subdir.iterdir():
@@ -147,15 +147,13 @@ async def get_thumbnail(file_id: str):
     import io
     from fastapi.responses import Response
 
-    # Check cache first
     cache_dir = Path(settings.upload_dir) / ".cache" / "thumbs"
     cache_dir.mkdir(parents=True, exist_ok=True)
     cached = cache_dir / f"{file_id}.jpg"
     if cached.exists():
         return Response(content=cached.read_bytes(), media_type="image/jpeg")
 
-    # Search in images and videos
-    for subdir, _ftype in [(IMAGE_DIR, "image"), (VIDEO_DIR, "video")]:
+    for subdir in [VIDEO_DIR]:
         if not subdir.exists():
             continue
         for f in subdir.iterdir():
@@ -164,27 +162,20 @@ async def get_thumbnail(file_id: str):
             if file_id not in f.name:
                 continue
             try:
-                if _ftype == "image":
-                    from PIL import Image
-                    img = Image.open(f)
-                else:
-                    # Video: extract first frame with OpenCV
-                    import cv2
-                    cap = cv2.VideoCapture(str(f))
-                    ret, frame = cap.read()
-                    cap.release()
-                    if not ret:
-                        raise RuntimeError("Cannot read video frame")
-                    # Convert BGR (OpenCV) to RGB (PIL)
-                    from PIL import Image
-                    import numpy as np
-                    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                import cv2
+                cap = cv2.VideoCapture(str(f))
+                ret, frame = cap.read()
+                cap.release()
+                if not ret:
+                    raise RuntimeError("Cannot read video frame")
+                from PIL import Image
+                import numpy as np
+                img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
                 img.thumbnail((300, 300))
                 buf = io.BytesIO()
                 img.save(buf, format="JPEG")
                 data = buf.getvalue()
-                # Cache thumbnail
                 cached.write_bytes(data)
                 return Response(content=data, media_type="image/jpeg")
             except Exception as e:
@@ -195,7 +186,7 @@ async def get_thumbnail(file_id: str):
 
 def _find_file(file_id: str) -> Path | None:
     """Find an uploaded file by file_id. Returns path or None."""
-    for subdir in [IMAGE_DIR, VIDEO_DIR]:
+    for subdir in [VIDEO_DIR]:
         if not subdir.exists():
             continue
         for f in subdir.iterdir():

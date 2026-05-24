@@ -20,16 +20,33 @@
     <section class="upload-section">
       <div class="drop-zone" id="dropZone">
         <div class="drop-zone__icon">+</div>
-        <p class="drop-zone__text">拖拽图片或视频到此处</p>
-        <p class="drop-zone__hint">支持 JPG / PNG / WebP / MP4 / MOV，图片 &lt;20MB，视频 &lt;200MB</p>
+        <p class="drop-zone__text">拖拽视频到此处</p>
+        <p class="drop-zone__hint">支持 MP4 / MOV / AVI，文件 &lt;200MB</p>
         <label class="drop-zone__btn" for="fileInput">选择文件</label>
-        <input type="file" id="fileInput" multiple accept="image/*,video/*" hidden />
+        <input type="file" id="fileInput" multiple accept="video/*" hidden />
       </div>
       <div class="upload-progress" id="uploadProgress" hidden>
         <div class="upload-progress__bar">
           <div class="upload-progress__fill" id="progressFill"></div>
         </div>
         <span class="upload-progress__text" id="progressText">0%</span>
+      </div>
+      <div style="margin-top:0.5rem;text-align:center;">
+        <label style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;">
+          <input type="checkbox" id="autoReconstructCheck" checked>
+          上传后自动离线重建
+        </label>
+      </div>
+      <div class="upload-progress" id="reconProgressBar" hidden>
+        <div class="upload-progress__bar">
+          <div class="upload-progress__fill" id="reconProgressFill"></div>
+        </div>
+        <span class="upload-progress__text" id="reconProgressText">正在离线重建…</span>
+      </div>
+      <div id="reconResultActions" hidden style="text-align:center;margin-top:0.5rem;display:flex;gap:0.5rem;justify-content:center;">
+        <button class="btn-refresh" id="downloadPlyBtn">下载点云</button>
+        <button class="btn-refresh" id="downloadScreenshotsBtn">下载截图</button>
+        <button class="btn-analyze" id="viewPointCloudBtn" style="background:#a855f7;color:white;">查看点云</button>
       </div>
     </section>
 
@@ -110,8 +127,9 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="/static/js/upload.js?v=3"></script>
-  <script src="/static/js/gallery.js?v=3"></script>
+  <script src="/static/js/upload.js?v=20260601"></script>
+  <script src="/static/js/reconstruct.js?v=1"></script>
+  <script src="/static/js/gallery.js?v=20260601"></script>
   <script src="/static/js/viewer_dense.js?v=6"></script>
   <script src="/static/js/slam3r.js?v=20260531"></script>
   <script src="/static/js/app.js?v=4"></script>
