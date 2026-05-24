@@ -74,56 +74,20 @@
       </div>
     </section>
 
-    <!-- SLAM3R Panel (Deep Dense Reconstruction) -->
-    <section class="recon-section" id="slam3rSection">
-      <div class="section-header">
-        <h2>SLAM3R 稠密重建 <span style="font-size:0.7rem;color:var(--success);font-weight:normal;">深度学习</span></h2>
-        <button class="btn-refresh" id="refreshSlam3rBtn">刷新</button>
-      </div>
-      <div class="recon-hint" style="text-align:center; color:var(--text-muted); padding:1rem; font-size:0.85rem;">
-        在画廊中选择视频 → 点击"SLAM3R 稠密重建" → 自动生成百万级点云
-        <br><small style="color:var(--primary)">需要 GPU (CUDA) 支持 · 不需要相机标定</small>
-      </div>
-      <div style="text-align:center; margin:0.5rem 0; display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
-        <button class="btn-analyze" id="startSlam3rBtn" style="background:var(--success);">SLAM3R 稠密重建</button>
-        <button class="btn-refresh" id="viewSlam3rCloudBtn" style="display:none;">查看点云</button>
-      </div>
-      <div class="recon-status" id="slam3rStatus" hidden>
-        <div class="recon-status__item">
-          <span id="slam3rProgress">等待中…</span>
-        </div>
-        <div class="recon-status__item recon-status__error" id="slam3rError" hidden></div>
-      </div>
-      <div class="recon-result" id="slam3rResult" hidden>
-        <div style="padding:0.75rem; background:var(--bg); border-radius:8px; margin-top:0.5rem;">
-          <div style="font-size:0.85rem; color:var(--success);">✓ 稠密重建完成</div>
-          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">
-            点云已加载到上方的"3D 点云查看器"
-          </div>
-        </div>
-      </div>
-      <div class="recon-jobs" id="slam3rJobs"></div>
-    </section>
-
-    <!-- SLAM3R Online Streaming Panel -->
+    <!-- MASt3R-SLAM Streaming -->
     <section class="recon-section" id="streamSection">
       <div class="section-header">
-        <h2>实时重建 <span style="font-size:0.7rem;color:var(--success);font-weight:normal;">SLAM3R 在线</span></h2>
-      </div>
-      <div class="recon-hint" style="text-align:center; color:var(--text-muted); padding:1rem; font-size:0.85rem;">
-        使用浏览器相机 → WebSocket 实时流 → SLAM3R 增量稠密点云
+        <h2>实时稠密重建 <span style="font-size:0.7rem;color:#a855f7;font-weight:normal;">MASt3R-SLAM</span></h2>
       </div>
       <div style="text-align:center; margin:0.5rem 0;">
         <video id="streamPreview" autoplay playsinline muted style="max-width:100%;max-height:240px;border-radius:8px;background:#000;" hidden></video>
       </div>
       <div style="text-align:center; margin:0.5rem 0; display:flex; gap:0.5rem; justify-content:center;">
-        <button class="btn-analyze" id="startStreamBtnVins" style="background:var(--primary);">VINS-Mono</button>
         <button class="btn-analyze" id="startStreamBtnMast3r" style="background:#a855f7;color:white;">MASt3R-SLAM</button>
-        <button class="btn-analyze" id="startStreamBtnSlam" style="background:var(--success);">SLAM3R</button>
         <button class="btn-refresh" id="stopStreamBtn" hidden style="color:var(--error);border-color:var(--error);">停止</button>
       </div>
       <div style="text-align:center;font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem;">
-        VINS-Mono (IMU+VO) &nbsp;|&nbsp; MASt3R-SLAM (实时稠密) &nbsp;|&nbsp; SLAM3R (离线批处理)
+        实时 · 增量稠密点云 · 需要 GPU
       </div>
       <div class="recon-status" id="streamStatus" hidden>
         <div class="recon-status__item">
@@ -134,7 +98,7 @@
   </main>
 
   <footer class="footer">
-    <p>See World v0.2 · SLAM3R Dense Reconstruction</p>
+    <p>See World v0.2 · MASt3R-SLAM Dense Reconstruction</p>
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -142,7 +106,7 @@
   <script src="/static/js/upload.js?v=3"></script>
   <script src="/static/js/gallery.js?v=3"></script>
   <script src="/static/js/viewer_dense.js?v=6"></script>
-  <script src="/static/js/slam3r.js?v=20260528"></script>
+  <script src="/static/js/slam3r.js?v=20260529"></script>
   <script src="/static/js/app.js?v=4"></script>
 </body>
 </html>
