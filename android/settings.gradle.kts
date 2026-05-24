@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "SeeWorld"
-include ':app'
+include(":app")
