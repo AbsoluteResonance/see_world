@@ -23,7 +23,8 @@ jobs:
       - name: Build Debug APK
         run: |
           cd android
-          ANDROID_HOME=$ANDROID_SDK_ROOT gradle assembleDebug --no-daemon --console=plain
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          gradle assembleDebug --no-daemon --console=plain
 
       - name: Rename APK
         run: |
