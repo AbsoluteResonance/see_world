@@ -59,6 +59,4 @@ SLAM/SLAM3R/media/
 android/.gradle/
 android/build/
 android/app/build/
-android/local.properties
 android/gradlew.bat
-android/gradle/wrapper/gradle-wrapper.jar
