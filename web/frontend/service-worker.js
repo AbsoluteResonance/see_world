@@ -1,5 +1,5 @@
 /* See World PWA Service Worker */
-const CACHE_NAME = "see-world-v3";
+const CACHE_NAME = "see-world-v4";
 
 const PRECACHE_URLS = [
   '/',

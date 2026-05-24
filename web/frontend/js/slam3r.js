@@ -12,6 +12,7 @@
   var mast3rIntervalId = null;
   var mast3rPollId = null;
   var firstFrame = true;
+  var mast3rMaxPoints = 500;
 
   async function startMast3rStream() {
     const statusEl = document.getElementById('streamStatus');
@@ -71,11 +72,10 @@
       if (!b64) return;
       var st2 = document.getElementById('streamStatus');
       var saveFlag = document.getElementById('saveFramesCheck')?.checked || false;
-      var maxPts = parseInt(document.getElementById('maxPointsInput')?.value || '500', 10);
       fetch('/api/slam3r/mast3r/frame', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: b64, timestamp: performance.now() / 1000, save: saveFlag, max_points: maxPts }),
+        body: JSON.stringify({ image: b64, timestamp: performance.now() / 1000, save: saveFlag, max_points: mast3rMaxPoints }),
       }).catch(function () {});
     }, 1500);
 
@@ -143,6 +143,15 @@
   document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('startStreamBtnMast3r')?.addEventListener('click', startMast3rStream);
     document.getElementById('stopStreamBtn')?.addEventListener('click', stopMast3rStream);
+    document.getElementById('applyMaxPointsBtn')?.addEventListener('click', function () {
+      var v = parseInt(document.getElementById('maxPointsInput')?.value || '500', 10);
+      if (v < 50) v = 50;
+      if (v > 20000) v = 20000;
+      mast3rMaxPoints = v;
+      document.getElementById('maxPointsInput').value = v;
+      var st = document.getElementById('streamStatus');
+      if (st && !st.hidden) st.textContent = 'MASt3R-SLAM | 每帧点 → ' + v;
+    });
     checkStatus();
   });
 
