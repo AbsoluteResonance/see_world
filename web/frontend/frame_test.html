@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>帧发送测试</title>
+<style>
+  body { font-family: monospace; background: #111; color: #eee; padding: 1rem; max-width: 600px; margin: 0 auto; }
+  h1 { font-size: 1.2rem; color: #4f46e5; }
+  #stats { margin: 1rem 0; padding: 0.5rem; background: #1a1a2e; border-radius: 8px; font-size: 0.9rem; }
+  #log { margin: 1rem 0; padding: 0.5rem; background: #000; border-radius: 8px; max-height: 400px; overflow-y: auto; font-size: 0.8rem; line-height: 1.5; }
+  .ok { color: #22c55e; }
+  .err { color: #ef4444; }
+  button { padding: 0.5rem 1.5rem; border-radius: 8px; border: none; cursor: pointer; font-size: 1rem; background: #4f46e5; color: #fff; }
+  button:disabled { opacity: 0.5; }
+  #fps { font-weight: bold; }
+  video { display: none; }
+</style>
+</head>
+<body>
+<h1>📷 帧发送测试</h1>
+<p style="font-size:0.85rem;color:#888;">测试手机 → 服务器帧传输链路</p>
+
+<button id="startBtn" onclick="startTest()">开始测试</button>
+<button id="stopBtn" onclick="stopTest()" disabled>停止</button>
+
+<div id="stats">
+  <div>状态: <span id="status">等待开始</span></div>
+  <div>已发送: <span id="sent">0</span> 帧 | 已确认: <span id="acked">0</span> 帧 | <span id="fps">0</span> FPS</div>
+  <div>平均延迟: <span id="avgLat">0</span> ms</div>
+</div>
+
+<div id="log">等待开始…</div>
+
+<video id="preview" autoplay playsinline muted></video>
+
+<script>
+var active = false;
+var sentCount = 0;
+var ackedCount = 0;
+var totalLatency = 0;
+var intervalId = null;
+
+function log(msg, cls) {
+  var el = document.getElementById('log');
+  var line = document.createElement('div');
+  line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  if (cls) line.className = cls;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function startTest() {
+  active = true;
+  sentCount = 0; ackedCount = 0; totalLatency = 0;
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('status').textContent = '启动相机…';
+  document.getElementById('log').innerHTML = '';
+
+  var stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false,
+    });
+  } catch (e) {
+    log('相机失败: ' + e.message, 'err');
+    stopTest();
+    return;
+  }
+
+  var video = document.getElementById('preview');
+  video.srcObject = stream;
+  await video.play();
+  log('相机已启动 ' + video.videoWidth + 'x' + video.videoHeight, 'ok');
+  document.getElementById('status').textContent = '发送中…';
+
+  // Send frames at ~1 FPS
+  var frameId = 0;
+  intervalId = setInterval(function () {
+    if (!active) return;
+
+    var c = document.createElement('canvas');
+    c.width = 640; c.height = 480;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(video, 0, 0, 640, 480);
+
+    var ts = performance.now() / 1000;
+    var dataUrl;
+    try {
+      dataUrl = c.toDataURL('image/jpeg', 0.7);
+    } catch (e) {
+      log('toDataURL 失败: ' + e.message, 'err');
+      return;
+    }
+
+    frameId++;
+    sentCount++;
+    document.getElementById('sent').textContent = sentCount;
+    var b64 = dataUrl.split(',')[1];
+
+    fetch('/api/test/frame', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: b64, timestamp: ts, frame: frameId }),
+    }).then(function (r) { return r.json(); }).then(function (body) {
+      if (body.code !== 0) { log('服务器返回错误', 'err'); return; }
+      ackedCount++;
+      totalLatency += body.data.latency_ms || 0;
+      var avgLat = Math.round(totalLatency / ackedCount);
+      document.getElementById('acked').textContent = ackedCount;
+      document.getElementById('avgLat').textContent = avgLat;
+      document.getElementById('fps').textContent = (ackedCount / ((performance.now() / 1000) - (ts - 1))).toFixed(1);
+      log('#' + frameId + ' ✓ ' + body.data.size_kb + 'KB ' + body.data.latency_ms + 'ms', 'ok');
+    }).catch(function (e) {
+      log('#' + frameId + ' ✗ ' + e.message, 'err');
+    });
+  }, 1000);
+}
+
+function stopTest() {
+  active = false;
+  if (intervalId) { clearInterval(intervalId); intervalId = null; }
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('status').textContent = '已停止';
+  log('测试停止', '');
+}
+</script>
+</body>
+</html>
