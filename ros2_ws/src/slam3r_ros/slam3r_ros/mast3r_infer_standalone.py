@@ -73,7 +73,7 @@ class Mast3rInference:
         self.tracker = FrameTracker(self.model, self.keyframes, self.device)
         self._log(f"Model loaded, device={self.device}")
 
-    def process_frame(self, image_bytes, timestamp):
+    def process_frame(self, image_bytes, timestamp, max_points=500):
         start = time.time()
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img_np = np.array(img).astype(np.float32) / 255.0
@@ -103,7 +103,7 @@ class Mast3rInference:
 
         # Extract point cloud from ALL keyframes (accumulated)
         points = []
-        pts_per_kf = max(500 // max(len(self.keyframes), 1), 50)
+        pts_per_kf = max(int(max_points) // max(len(self.keyframes), 1), 50)
         for kidx in range(len(self.keyframes)):
             kf = self.keyframes[kidx]
             if kf.X_canon is None:
@@ -166,8 +166,9 @@ def main():
             try:
                 image_b64 = msg.get("image_base64", "")
                 timestamp = msg.get("timestamp", 0.0)
+                max_points = msg.get("max_points", 500)
                 image_bytes = base64.b64decode(image_b64)
-                result = infer.process_frame(image_bytes, timestamp)
+                result = infer.process_frame(image_bytes, timestamp, max_points=max_points)
                 print(json.dumps(result), flush=True)
             except Exception as e:
                 import traceback

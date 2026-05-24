@@ -34,7 +34,7 @@ async def mast3r_frame(body: dict):
         ok = mast3r_slam_service.start_inference()
         if not ok:
             raise HTTPException(status_code=500, detail="inference start failed")
-    mast3r_slam_service.send_frame(image_b64, body.get("timestamp", 0.0))
+    mast3r_slam_service.send_frame(image_b64, body.get("timestamp", 0.0), max_points=body.get("max_points", 500))
     save_flag = body.get("save", False)
     print(f"[route] save={save_flag} type={type(save_flag).__name__}")
     if save_flag:

@@ -82,12 +82,12 @@ def start_inference() -> bool:
         return False
 
 
-def send_frame(image_b64: str, timestamp: float):
+def send_frame(image_b64: str, timestamp: float, max_points: int = 500):
     """Send a frame to the inference subprocess."""
     global _infer_proc
     _infer_ready.wait(timeout=120)
     if _infer_proc and _infer_proc.poll() is None:
-        msg = json.dumps({"type": "frame", "image_base64": image_b64, "timestamp": timestamp})
+        msg = json.dumps({"type": "frame", "image_base64": image_b64, "timestamp": timestamp, "max_points": max_points})
         try:
             _infer_proc.stdin.write(msg + "\n")
             _infer_proc.stdin.flush()

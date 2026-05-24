@@ -71,10 +71,11 @@
       if (!b64) return;
       var st2 = document.getElementById('streamStatus');
       var saveFlag = document.getElementById('saveFramesCheck')?.checked || false;
+      var maxPts = parseInt(document.getElementById('maxPointsInput')?.value || '500', 10);
       fetch('/api/slam3r/mast3r/frame', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: b64, timestamp: performance.now() / 1000, save: saveFlag }),
+        body: JSON.stringify({ image: b64, timestamp: performance.now() / 1000, save: saveFlag, max_points: maxPts }),
       }).catch(function () {});
     }, 1500);
 
