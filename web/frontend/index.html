@@ -82,9 +82,12 @@
       <div style="text-align:center; margin:0.5rem 0;">
         <video id="streamPreview" autoplay playsinline muted style="max-width:100%;max-height:240px;border-radius:8px;background:#000;" hidden></video>
       </div>
-      <div style="text-align:center; margin:0.5rem 0; display:flex; gap:0.5rem; justify-content:center;">
+      <div style="text-align:center; margin:0.3rem 0; display:flex; gap:0.5rem; justify-content:center; align-items:center;">
         <button class="btn-analyze" id="startStreamBtnMast3r" style="background:#a855f7;color:white;">MASt3R-SLAM</button>
         <button class="btn-refresh" id="stopStreamBtn" hidden style="color:var(--error);border-color:var(--error);">停止</button>
+        <label style="font-size:0.75rem;color:var(--text-muted);cursor:pointer;">
+          <input type="checkbox" id="saveFramesCheck"> 保存帧
+        </label>
       </div>
       <div style="text-align:center;font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem;">
         实时 · 增量稠密点云 · 需要 GPU
@@ -106,7 +109,7 @@
   <script src="/static/js/upload.js?v=3"></script>
   <script src="/static/js/gallery.js?v=3"></script>
   <script src="/static/js/viewer_dense.js?v=6"></script>
-  <script src="/static/js/slam3r.js?v=20260529"></script>
+  <script src="/static/js/slam3r.js?v=20260530"></script>
   <script src="/static/js/app.js?v=4"></script>
 </body>
 </html>

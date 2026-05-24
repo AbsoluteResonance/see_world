@@ -92,36 +92,40 @@ class Mast3rInference:
             status = "init"
         else:
             add_new_kf, _, try_reloc = self.tracker.track(frame)
-            if add_new_kf and len(self.keyframes) < 200:
+            # Force new keyframe every 3 frames for fresh colors
+            force_kf = (self.frame_count % 3 == 0)
+            if (add_new_kf or force_kf) and len(self.keyframes) < 200:
                 self.keyframes.append(frame)
             status = "reloc" if try_reloc else "tracking"
 
         self.last_T_WC = frame.T_WC
         self.frame_count += 1
 
-        # Extract point cloud (latest keyframe only, incremental)
+        # Extract point cloud from ALL keyframes (accumulated)
         points = []
-        if len(self.keyframes) > 0:
-            kf = self.keyframes[-1]
-            if kf.X_canon is not None:
-                pW = kf.T_WC.act(kf.X_canon).cpu().numpy().reshape(-1, 3)
-                colors = (kf.uimg.cpu().numpy() * 255).astype(np.uint8).reshape(-1, 3)
-                valid = kf.get_average_conf().cpu().numpy().reshape(-1) > 0.0
-                pW = pW[valid]
-                colors = colors[valid]
-                if len(pW) > 500:
-                    idx = np.random.choice(len(pW), 500, replace=False)
-                    pW = pW[idx]
-                    colors = colors[idx]
-                for i in range(len(pW)):
-                    points.append([
-                        round(float(pW[i, 0]), 4),
-                        round(-float(pW[i, 1]), 4),  # Y-down → Y-up
-                        round(float(pW[i, 2]), 4),
-                        int(colors[i, 0]), int(colors[i, 1]), int(colors[i, 2]),
-                    ])
-                self.total_points += len(points)
-                self.num_keyframes = len(self.keyframes)
+        pts_per_kf = max(500 // max(len(self.keyframes), 1), 50)
+        for kidx in range(len(self.keyframes)):
+            kf = self.keyframes[kidx]
+            if kf.X_canon is None:
+                continue
+            pW = kf.T_WC.act(kf.X_canon).cpu().numpy().reshape(-1, 3)
+            colors = (kf.uimg.cpu().numpy() * 255).astype(np.uint8).reshape(-1, 3)
+            valid = kf.get_average_conf().cpu().numpy().reshape(-1) > 0.0
+            pW = pW[valid]
+            colors = colors[valid]
+            if len(pW) > pts_per_kf:
+                idx = np.random.choice(len(pW), pts_per_kf, replace=False)
+                pW = pW[idx]
+                colors = colors[idx]
+            for i in range(len(pW)):
+                points.append([
+                    round(float(pW[i, 0]), 4),
+                    round(-float(pW[i, 1]), 4),  # Y-down → Y-up
+                    round(float(pW[i, 2]), 4),
+                    int(colors[i, 0]), int(colors[i, 1]), int(colors[i, 2]),
+                ])
+        self.total_points = sum(len(kf.X_canon or []) for kf in self.keyframes if kf.X_canon is not None)
+        self.num_keyframes = len(self.keyframes)
 
         elapsed = time.time() - start
         fps = 1.0 / elapsed if elapsed > 0 else 0

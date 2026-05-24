@@ -15,26 +15,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-      - name: Build APK
+      - name: Install Android SDK
+        run: |
+          apt-get update -qq && apt-get install -y -qq wget unzip
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip
+          unzip -q commandlinetools-linux-*.zip -d $HOME/android-sdk/cmdline-tools/
+          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+
+      - name: Build Debug APK
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease
+          ANDROID_HOME=$HOME/android-sdk gradle assembleDebug --no-daemon
 
-      - name: Sign APK
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: android/app/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
-          alias: ${{ secrets.ANDROID_ALIAS }}
-          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Rename APK
+        run: |
+          mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/SeeWorld-v1.0.0.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: android/app/build/outputs/apk/release/*.apk
+          files: android/app/build/outputs/apk/debug/SeeWorld-*.apk
           generate_release_notes: true

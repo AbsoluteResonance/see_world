@@ -35,6 +35,16 @@ async def mast3r_frame(body: dict):
         if not ok:
             raise HTTPException(status_code=500, detail="inference start failed")
     mast3r_slam_service.send_frame(image_b64, body.get("timestamp", 0.0))
+    save_flag = body.get("save", False)
+    print(f"[route] save={save_flag} type={type(save_flag).__name__}")
+    if save_flag:
+        try:
+            ts = str(body.get("timestamp", "0"))
+            with open(f"/tmp/mast3r_frame_{ts}.jpg", "wb") as f:
+                f.write(base64.b64decode(image_b64))
+            print(f"[route] saved frame {ts}")
+        except Exception as e:
+            print(f"[route] save frame failed: {e}")
     return {"code": 0, "data": {"received": True}}
 
 

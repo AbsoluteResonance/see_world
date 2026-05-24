@@ -70,10 +70,11 @@
       var b64 = dataUrl.split(',')[1];
       if (!b64) return;
       var st2 = document.getElementById('streamStatus');
+      var saveFlag = document.getElementById('saveFramesCheck')?.checked || false;
       fetch('/api/slam3r/mast3r/frame', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: b64, timestamp: performance.now() / 1000 }),
+        body: JSON.stringify({ image: b64, timestamp: performance.now() / 1000, save: saveFlag }),
       }).catch(function () {});
     }, 1500);
 
