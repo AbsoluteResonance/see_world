@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     slam3r_device: str = "cuda"
     slam3r_output_dir: str = ""
     slam3r_hf_cache: str = "/autodl-fs/data/projects/see_world/.hf_cache"
+    slam_bridge_mode: str = "direct"
+    ros2_workspace: str = "/root/ros2_ws"
 
     class Config:
         env_prefix = "SEE_WORLD_"
