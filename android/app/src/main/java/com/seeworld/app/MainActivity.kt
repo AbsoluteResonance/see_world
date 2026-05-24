@@ -35,7 +35,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadSavedUrl() {
         var url = getSavedUrl()
         if (url.isBlank()) {
-            url = "https://cluster-texts-edit-earnings.trycloudflare.com"
+            url = "https://u59647-a141-5d60e0cc.westc.seetacloud.com:8443"
             showUrlDialog(url)
         } else {
             webView.loadUrl(url)

@@ -124,7 +124,7 @@ class Mast3rInference:
                     round(float(pW[i, 2]), 4),
                     int(colors[i, 0]), int(colors[i, 1]), int(colors[i, 2]),
                 ])
-        self.total_points = sum(len(kf.X_canon or []) for kf in self.keyframes if kf.X_canon is not None)
+        self.total_points = sum(len(kf.X_canon) for kf in self.keyframes if kf.X_canon is not None)
         self.num_keyframes = len(self.keyframes)
 
         elapsed = time.time() - start
