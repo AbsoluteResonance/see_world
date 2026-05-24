@@ -18,13 +18,27 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build APK
-        run: cd android && ./gradlew assembleDebug --no-daemon --console=plain
+      - name: Accept licenses and install SDK 34
+        run: |
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" 2>/dev/null || true
 
-      - name: Rename APK
+      - name: Build APK
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -la /usr/local/lib/android/sdk/ 2>/dev/null || echo "No SDK at default path"
+          cd android
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          cat local.properties
+          ./gradlew assembleDebug --no-daemon --console=plain 2>&1 || { echo "=== BUILD FAILED ==="; exit 1; }
+
+      - name: Prepare APK
         run: |
           mkdir -p artifacts
-          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/SeeWorld-v1.0.0.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/SeeWorld-v1.0.0.apk 2>/dev/null || echo "APK not found - listing outputs"
+          find android/app/build -name "*.apk" 2>/dev/null
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
