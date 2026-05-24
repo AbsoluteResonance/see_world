@@ -54,3 +54,11 @@ web/reconstructions/
 
 # SLAM3R demo media (large, not needed for code)
 SLAM/SLAM3R/media/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/gradlew.bat
+android/gradle/wrapper/gradle-wrapper.jar
